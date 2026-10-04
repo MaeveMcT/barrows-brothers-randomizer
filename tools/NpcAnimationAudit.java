@@ -1,4 +1,4 @@
-package com.barrowsthemes;
+package com.barrowsbrothersrandomizer;
 
 import java.io.File;
 import java.util.Arrays;

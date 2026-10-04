@@ -1,73 +1,32 @@
-# Offline material study (development only)
+# Offline NPC animation research
 
-`Study.java` is a standalone research tool, outside `src/` and never included in the Plugin Hub JAR. It depends on RuneLite's cache library and its normal runtime dependencies, not the live client. The production plugin does not open/decode on-disk cache files, read XTEA keys, run processes or dynamically load code. Its NPC/sequence/frame-map metadata decoders only consume bytes provided by public live-client cache-index APIs.
+These tools are outside `src/` and never packaged in the plugin. Always use a **private cache copy**, not a cache belonging to a running client. No keys are needed; do not distribute cache assets or config dumps.
 
-Always point it at a **copy** of the Jagex cache, not a cache used by a running client. Keep cache contents and region keys outside this repository. The supplied study expects the local RuneLite `xtea.json` format: a JSON object mapping decimal region IDs to four integers. Do not publish that file.
+Set `CACHE_CP` to RuneLite's cache-library JAR and runtime dependencies, and `API_CP` to the public RuneLite API JAR. Use JDK 21 to run these tools.
 
-With JDK 21 and `CACHE_CP` set to a classpath containing the RuneLite cache JAR and its runtime dependencies (Guava, Gson, SLF4J, Commons Compress/IO/Lang, and any dependencies required by your cache-library revision):
+## Native movement audit
 
-```sh
-mkdir -p /tmp/barrows-study-classes
-javac -cp "$CACHE_CP" -d /tmp/barrows-study-classes tools/Study.java
-java -cp "$CACHE_CP:/tmp/barrows-study-classes" Study \
-  /path/to/cache-copy /path/to/xtea.json \
-  14231,9540,9541,9797,9043,13137,13138 > /tmp/barrows-material-report.json
-```
-
-The JSON report contains region floor definitions and placed object IDs, model references, post-definition material colours/textures, placement types/planes and missing-model lists. No keys are printed. Check both region errors and missing-model lists before drawing conclusions; an absent texture is not proof of an untextured model when model data is unavailable. This tool does not resolve every morph child, model placement-type choice, terrain blending or scene lighting; curated role matching is deliberately approximate.
-
-## Wall model metadata
-
-`WallModels.java` prints selected object model/type lists, recolour/retexture tables, ambient/contrast lighting, textured-face counts, mirroring flags, animation IDs, footprints, model scale and model bounds. It needs no XTEA keys and exports no meshes. Compile with the same cache classpath:
+`NpcAnimationAudit.java` compares the production decoder's 15 movement fields against RuneLite's `NpcLoader` for every definition. Optional IDs print definition/model/gait summaries, not meshes.
 
 ```sh
-mkdir -p /tmp/barrows-study-classes
-javac -cp "$CACHE_CP" -d /tmp/barrows-study-classes tools/WallModels.java
-java -cp "$CACHE_CP:/tmp/barrows-study-classes" WallModels /path/to/cache-copy \
-  20728 20729 20730 20731 20732 20764 12007 12009 29781 30319 30325
-```
-
-## Corner native-facing comparison
-
-`CornerFacing.java` compares normalized horizontal mesh slices against a target model at all four quarter-turns. It needs no keys and exports no meshes. Lower distance scores suggest closer surfaces; the heuristic cannot establish correct live corner placement, culling or doorway clearances.
-
-```sh
-javac -cp "$CACHE_CP" -d /tmp/barrows-study-classes tools/CornerFacing.java
-java -cp "$CACHE_CP:/tmp/barrows-study-classes" CornerFacing /path/to/cache-copy \
-  6620 11890 32432 33063 33074
-java -cp "$CACHE_CP:/tmp/barrows-study-classes" CornerFacing /path/to/cache-copy \
-  6621 11890 32432 33063 33074
-# Historical unsigned CoX comparison: 1024 reversed the visible front; do not apply it
-java -cp "$CACHE_CP:/tmp/barrows-study-classes" CornerFacing /path/to/cache-copy \
-  6619 32439
-```
-
-## Wall-join replay (live review required)
-
-`WallJoinReplay.java` checks captured Karil wall sections and neighbouring joins against production fitters using a private cache copy, no keys. Its reflective adapters implement public mesh interfaces **offline only**; it is outside `src/` and never packaged in the plugin. It approximates live y contouring from reported bounds, not an exact live mesh or GPU renderer replay. Default mode reconstructs the failed v2 box fit. `--surface` exercises the current fitter and synthetically rotates the whole reproduction through all four placements: 48 front-surface checks and 32 neighbour joins pass after removal of collapsed endpoint-roof mapping. These checks retain the original 24-unit front-miss and original-gap-plus-8 join allowances; they are not proof of rendering or exact roof clearance. Commands, historical failures and current next steps: [../docs/agent-handoff.md](../docs/agent-handoff.md#offline-replay-the-useful-feedback-loop).
-
-## NPC movement decoder audit
-
-`NpcAnimationAudit.java` compares the production decoder's 15 movement fields against RuneLite's cache `NpcLoader` for every definition. Optional IDs print definition/model/gait summaries, not meshes. Add the public RuneLite API JAR as `API_CP`:
-
-```sh
-javac -cp "$CACHE_CP:$API_CP" -d /tmp/barrows-study-classes \
-  tools/NpcAnimationAudit.java src/main/java/com/barrowsthemes/NativeNpcAnimations.java
-java -cp "$CACHE_CP:$API_CP:/tmp/barrows-study-classes" \
-  com.barrowsthemes.NpcAnimationAudit /path/to/cache-copy \
+mkdir -p /tmp/barrows-npc-audit-classes
+javac -cp "$CACHE_CP:$API_CP" -d /tmp/barrows-npc-audit-classes \
+  tools/NpcAnimationAudit.java \
+  src/main/java/com/barrowsbrothersrandomizer/NativeNpcAnimations.java
+java -cp "$CACHE_CP:$API_CP:/tmp/barrows-npc-audit-classes" \
+  com.barrowsbrothersrandomizer.NpcAnimationAudit /path/to/cache-copy \
   1173 1174 2790 2791 2793 2804 2805 2806 2827 2834 2838 2839 2856 2859
 ```
 
-## Native attack layout corroboration
+## Native attack-layout corroboration
 
-`NativeAttackStudy.java` compares all classic frame-map layouts used by each supplied idle/attack pair. It reports missing assets as errors instead of concluding compatibility. Matching layouts corroborate a named family mapping; they do not establish attack classification or visual correctness.
+`NativeAttackStudy.java` compares every classic frame-map layout used by supplied idle/attack pairs. Missing assets are errors, not compatibility evidence. Matching layouts do not establish attack classification or rendered anatomy.
 
 ```sh
-javac -cp "$CACHE_CP" -d /tmp/barrows-study-classes tools/NativeAttackStudy.java
-java -cp "$CACHE_CP:/tmp/barrows-study-classes" NativeAttackStudy /path/to/cache-copy \
+mkdir -p /tmp/barrows-native-attack-classes
+javac -cp "$CACHE_CP" -d /tmp/barrows-native-attack-classes tools/NativeAttackStudy.java
+java -cp "$CACHE_CP:/tmp/barrows-native-attack-classes" NativeAttackStudy /path/to/cache-copy \
   5386 5387 5852 5849 4914 4915 4919 4925 4932 4933
 ```
 
-NPC findings, mappings and limitations: [`../docs/npc-animation-research.md`](../docs/npc-animation-research.md).
-
-Findings and chosen wall mappings: [`../docs/material-research.md`](../docs/material-research.md) and [`../docs/theme-models.md`](../docs/theme-models.md). The six additional themes were removed; only Zanaris, CoX and Inferno mappings remain supported.
+Findings and limitations: [../docs/npc-animation-research.md](../docs/npc-animation-research.md). The former wall/material research tools and all scenery replacement code have been removed from this plugin.
