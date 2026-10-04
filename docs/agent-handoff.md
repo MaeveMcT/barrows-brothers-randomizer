@@ -1,6 +1,42 @@
 # Agent handoff — wall alignment checkpoint
 
-## Read first: this commit is WIP, not a verified wall fix
+## Latest adjustment: softer wall lighting; corner geometry unchanged
+
+The user supplied `/Users/maeve/.runelite/screenshots/Spiky_Melon/2026-10-04_23-17-04.png` and an original-material report around template `3533..3544,9699..9708,3`. Dark straight-wall runs use masks `2/4` (rotations `512/1024`), with masks matching placement configs. Directional shading from the fixed light vector is a plausible explanation; the report/screenshot do not establish a reversed-mesh bug. A temporary private-cache audit found no source-front reversals for CoX's two straight sources or corner/post sources under the approximated target geometry; it is not an exact live/GPU replay. Other themes' native-facing offsets were not changed.
+
+At the user's request, `WallModelReplacements` now doubles the lighting contrast divisor from **768 to 1536** for crypt-wall replacements in all three themes. This approximately halves the directional term while keeping source ambient (`64`, Zanaris `84`), colours and the fixed light vector `(-50,-10,-50)`. Straight walls, posts and both corner roles share this policy; parked scenery lighting is untouched. No fitter, placement/render rotation, vertex, anchor, overlap, radius or cleanup logic was changed by this lighting adjustment.
+
+Regressions cover softened lighting across all four straight-wall rotations, existing all-four-rotation corner geometry/facing checks, CoX posts/both palettes, genuine nonzero model render orientation and unchanged parked-scenery lighting. The updated assertions first failed on the previous lighting parameters, then passed. Focused fitting/replacement tests, plugin `./gradlew build` (**133 tests, zero failures/errors/skips**) and harness `:barrows-themes:jar` passed. Temporary facing-audit code/cache copies were removed.
+
+**Live feedback:** the user reloaded and reported **“yeah looks good”** after the softer lighting change. This confirms their visual review of the supplied wall/corner situation, not comprehensive clearance/cutaway/all-theme verification.
+
+**Next checks:** inspect additional wall orientations and both crypt planes. Check shadow lift, retained rock detail and consistent corner shading; do not introduce a rotation or geometry change just to brighten a wall.
+
+## Current scope: Zanaris, CoX and Inferno only
+
+The user subsequently reported **“corners look better”** for the CoX changes below, then requested removal of the other six themes. The enum/dropdown, artistic palettes, native model mappings and related UI/documentation now contain only Zanaris, Chambers of Xeric and Inferno. Unsupported saved selections reset to Zanaris on startup; valid/unset selections are preserved. Generic cross-theme fitting exploration was removed, not enabled in production. CoX fitting and the other retained wall sets are unchanged by this scope reduction.
+
+Current verification after removal: focused theme/mapping/replacement/coverage tests passed; `./gradlew clean build` passed with **132 tests, zero failures/errors/skips**; harness `:barrows-themes:jar` passed. Theme-selection migration, reload and comprehensive in-game clearance/cutaway checks remain unverified. No commit or push was requested.
+
+## CoX continuation: automated checks green; limited live feedback
+
+The following findings supersede the historical checkpoint below. No commit, push or release was requested for this continuation.
+
+- Preserved the proven `getModelOrientation()` correction and CoX native offsets **0/0/0**.
+- Reproduced the two inner-wall/post replay failures on a private cache copy with the same idx2 fingerprint.
+- Cause: the roof envelope used progress endpoints from a **mid-height section**, although native cell-edge progress changes with height. At CoX endpoint vertices, source roof samples around **-187** and target samples around **-123..-171** clamped several higher vertices to the same height, truncating the upper joining skin.
+- Removed that nonlinear roof mapping. Height now scales once from native source bounds to original visible height, with the target floor still capped at **y=0**. This preserves relative native roof relief; it does **not** reproduce the original roof envelope exactly. Horizontal front-surface fitting, shared anchors, relief taper and eight-unit overlap are unchanged.
+- Added an all-four-rotation regression with two raised endpoint vertices: the old code collapsed both to **-250**; the corrected code keeps them at **-250/-219**. Synthetic diagonal/post tests now actually assert face winding. Integration post fixtures now represent the small NW post rather than a full diagonal run; endpoint/radius expectations enforce the overlap contract.
+- `WallJoinReplay --surface` now also rotates the complete reproduction (positions and placement rotations). **48 front-surface checks and 32 neighbour joins pass**. Synthetic rotated cases are not additional live captures.
+- Previously failing joins: `0/2` **13.53 → 4.19**, `7/6` **10.55 → 3.26** local units. Reported-case front misses range **12.62–23.97** against the unchanged 24-unit allowance; the straight `32435` control is close to that limit.
+- Focused tests: **28 passed**. Plugin `./gradlew build`: **130 tests, zero failures/errors/skips**. Harness `:barrows-themes:jar`: passed.
+- Temporary debug instrumentation and the private research cache copy were removed. Production still uses public live-client APIs only.
+
+**Next action:** reload `barrows-themes`, confirm only the three retained themes appear, and review upper seams/clearance at the two already supplied Karil corners. Expect report **v3**, `extraRot=0`, actual `renderRot=0` for those static objects, and `fit=front-surface profile`. No in-game verification was performed in this continuation. Check upper seams, native roof shape, door clearance and cutaways before calling the visual fix complete; then check both planes, all orientations and source variants. Do not expand nonlinear horizontal fitting to other themes from these checks alone.
+
+## Historical checkpoint: unfinished experiment
+
+The rest of this document records the earlier red checkpoint and its research context, not the current test/replay status. Its roof-mapping algorithm and suggested diagnostic steps have been superseded above.
 
 The user requested a local commit and handoff while a second wall-fitting investigation was in progress. This repository previously had **no commits**: the checkpoint includes the whole plugin, not just the latest wall changes. Do not publish/release it as a completed fix. Nothing was pushed.
 
@@ -180,7 +216,7 @@ Cache idx2 fingerprint remains `8eea5056e4005bdf40483f6f0037f3da82c78a92f762f769
 
 ## Other plugin work already present
 
-- Nine explicit native wall sets: Zanaris, CoX, Inferno, Prifddinas, Ancient Pyramid, Darkmeyer, northern polar-cave adaptation for Fremennik ice caves, Dorgesh-Kaan, Abyss.
+- The checkpoint originally included nine native wall sets; the current scope reduction retains only Zanaris, CoX and Inferno.
 - Source recolours, ambient/contrast offsets, stable straight variants, native meshes separate from artistic role palettes; unsupported/protected scenery stays original.
 - Crypt scenery replacement configuration removed; production forces scenery=false.
 - Uniform once-per-spawn random NPC definition from all 16,576 available IDs, current morph resolution, missing/model-less fallback without reroll.

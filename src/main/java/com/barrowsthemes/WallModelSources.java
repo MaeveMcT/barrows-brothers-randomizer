@@ -37,12 +37,6 @@ final class WallModelSources
 	// CoX front skins are conformed to the original wall profiles; a diagonal half-turn reverses winding.
 	private static final WallSet COX = new WallSet(COX_WALLS, COX_DIAGONAL, COX_CORNER, COX_CORNER, 0, 0, 0);
 	private static final WallSet INFERNO = new WallSet(INFERNO_WALLS, INFERNO_WALLS[0], INFERNO_OUTER, INFERNO_INNER, 256, 512, 512);
-	private static final WallSet PRIFDDINAS = new WallSet(new Source[] {prif(37493), prif(37497)}, prif(37474), prif(37500), prif(37500), 0, 1024, 0);
-	private static final WallSet PYRAMID = new WallSet(new Source[] {pyramid(6254)}, pyramid(6254), pyramid(6247), pyramid(6247), 256, 512, 0);
-	private static final WallSet DARKMEYER = new WallSet(new Source[] {darkmeyer(60820), darkmeyer(60824)}, darkmeyer(60821), darkmeyer(60823), darkmeyer(60823), 0, 1024, 0);
-	private static final WallSet ICE = new WallSet(new Source[] {ice(9963)}, ice(9964), ice(9965), ice(9965), 0, 0, 1024);
-	private static final WallSet DORGESH_KAAN = new WallSet(new Source[] {dorgesh(23757), dorgesh(23749), dorgesh(23766)}, dorgesh(23758), dorgesh(23760), dorgesh(23760), 0, 0, 1024);
-	private static final WallSet ABYSS = new WallSet(new Source[] {plain(7413), plain(7416)}, plain(7414), plain(7415), plain(7415), 0, 0, 1024);
 
 	private static WallSet walls(BarrowsTheme theme)
 	{
@@ -51,12 +45,6 @@ final class WallModelSources
 			case ZANARIS: return ZANARIS;
 			case CHAMBERS_OF_XERIC: return COX;
 			case INFERNO: return INFERNO;
-			case PRIFDDINAS: return PRIFDDINAS;
-			case ANCIENT_PYRAMID: return PYRAMID;
-			case DARKMEYER: return DARKMEYER;
-			case FREMENNIK_ICE_CAVES: return ICE;
-			case DORGESH_KAAN: return DORGESH_KAAN;
-			case ABYSS: return ABYSS;
 			default: return null; // Never borrow unrelated geometry for an unmapped theme.
 		}
 	}
@@ -100,8 +88,7 @@ final class WallModelSources
 			if (type == 9) { return inner(id) ? set.inner : set.outer; }
 			return null;
 		}
-		// Only the original three themes retain parked scenery experiments. Production disables them.
-		if (theme != BarrowsTheme.ZANARIS && theme != BarrowsTheme.CHAMBERS_OF_XERIC && theme != BarrowsTheme.INFERNO) { return null; }
+		// Parked scenery experiments. Production disables them.
 		if (isStep(id) && type == 22)
 		{
 			boolean corner = id == ObjectID.BARROWS_SKEWSTEPS_CORNER || id == ObjectID.BARROWS_SKEWSTEPS_CORNER_PURPLE;
@@ -152,23 +139,6 @@ final class WallModelSources
 	private static Source zanaris(int id) { return new Source(id, 20, null, null); }
 	private static Source coxWall(int id) { return new Source(id, 0, new short[] {29574}, new short[] {29194}); }
 
-	private static Source prif(int id)
-	{
-		return new Source(id, 20, 250, new short[] {7465, 6435, 5404, -22423, -22440, -22456},
-			new short[] {3350, 3346, 3470, 7465, 6435, 5404});
-	}
-	private static Source pyramid(int id) { return new Source(id, 0, 1000, new short[] {10434}, new short[] {8526}); }
-	private static Source darkmeyer(int id)
-	{
-		return new Source(id, 10, 2500, new short[] {284, 278, 268, 549, 547, 419}, new short[] {5404, 5400, 5392, 173, 169, 167});
-	}
-	private static Source ice(int id)
-	{
-		return new Source(id, 30, 750, new short[] {7442, 7446, 7322, 7326, 7331, 7335},
-			new short[] {-29238, -29234, -31406, -31522, -27537, -22407});
-	}
-	private static Source dorgesh(int id) { return new Source(id, 35, null, null); }
-
 	private static final class WallSet
 	{
 		final Source[] straight;
@@ -184,12 +154,11 @@ final class WallModelSources
 	static final class Source
 	{
 		final int modelId;
-		private final int ambient, contrast;
+		private final int ambient;
 		private final short[] from, to;
-		private Source(int modelId, int ambient, short[] from, short[] to) { this(modelId, ambient, 0, from, to); }
-		private Source(int modelId, int ambient, int contrast, short[] from, short[] to)
+		private Source(int modelId, int ambient, short[] from, short[] to)
 		{
-			this.modelId = modelId; this.ambient = ambient; this.contrast = contrast; this.from = from; this.to = to;
+			this.modelId = modelId; this.ambient = ambient; this.from = from; this.to = to;
 		}
 
 		void recolor(ModelData copy)
@@ -198,6 +167,6 @@ final class WallModelSources
 		}
 
 		int ambient() { return ModelData.DEFAULT_AMBIENT + ambient; }
-		int contrast() { return ModelData.DEFAULT_CONTRAST + contrast; }
+		int contrast() { return ModelData.DEFAULT_CONTRAST; }
 	}
 }

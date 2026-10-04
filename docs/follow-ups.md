@@ -1,16 +1,16 @@
 # Visual follow-ups
 
-**Current WIP:** v2 rotations did not resolve CoX gaps. The v3 surface fitter is an unfinished experiment with five failing tests and two failing replay joins. Continue from [agent-handoff.md](agent-handoff.md); the older status below is historical where it describes the CoX half-turn.
+**Current status:** v2 rotations did not resolve CoX gaps. The v3 surface fitter now passes 130 tests and the four-rotation replay after removing collapsed endpoint-roof mapping. Live review remains required; continue from [agent-handoff.md](agent-handoff.md).
 
-Current status: nine material themes, optional cache-backed wall models for all nine themes, and random NPC disguises. Crypt scenery-model swaps are parked following the user's in-game feedback. New palettes, animation options and diagnostics have automated coverage but still need in-game review.
+Current scope: Zanaris, Chambers of Xeric and Inferno, with cache-sampled material palettes, optional native wall models and random NPC disguises. The user reports improved CoX corners; broad live review remains. Replacement-wall directional lighting has been softened uniformly for straights/posts/corners without changing their geometry or rotations; review brightness and corner shading in-game. Crypt scenery-model swaps stay parked.
 
-## Additional themes
+## Theme scope
 
-Implemented: Prifddinas, Ancient Pyramid, Darkmeyer, Fremennik ice caves, Dorgesh-Kaan and Abyss. These six have artistic material palettes plus explicit cache-backed wall meshes, source recolours/lighting and calibrated corner offsets. Polar cave geometry is an adaptation for the ice theme; pyramid diagonals reuse a rotated wall. See [theme-palettes.md](theme-palettes.md) and [theme-models.md](theme-models.md).
+The six additional themes were removed at the user's request, including their artistic palettes and source-model mappings. Saved unsupported selections reset to Zanaris; valid selections are preserved. Exploratory generic fitting was not enabled. See [theme-palettes.md](theme-palettes.md) and [theme-models.md](theme-models.md).
 
-Future themes are model-first: researched wall assets are required, not recolour-only presets or unrelated model fallbacks. The all-theme mapping regression test enforces explicit shape coverage.
+Future themes require researched native assets and signed-skin/join evidence, not recolour-only presets or unrelated fallback meshes.
 
-Remaining: review all nine wall sets and palettes in tunnels/tombs, especially seams, corners, doorway clearance, roof cutaways, native lighting and FPS.
+Remaining: review the three retained wall sets in tunnels/tombs, especially seams, corners, doorway clearance, roof cutaways, native lighting and FPS.
 
 ## Middle-wall variation
 
@@ -20,9 +20,9 @@ Remaining: compare long wall runs, transitions, both crypt planes and all themes
 
 ## Corner facing
 
-Implemented: source-specific native-facing adjustments for main/inner corner walls, calibrated against offline horizontal mesh slices. Zanaris main corners gain a half-turn, inner corners retain their facing; Inferno uses a different main-corner asset and quarter-turn offsets; CoX corners retain their sampled best facing; its diagonals now receive a cache-compared half-turn. All four placement rotations have regression coverage. The actual **model** render orientation is retained (`getModelOrientation()`), not the object orientation that incorrectly applied placement rotation a second time.
+Implemented: source-specific native-facing adjustments for main/inner corner walls, calibrated against offline horizontal mesh slices. Zanaris main corners gain a half-turn, inner corners retain their facing; Inferno uses a different main-corner asset and quarter-turn offsets; CoX corners/posts retain native facing; the failed diagonal half-turn was undone because it reversed the visible front. All four placement rotations have regression coverage. The actual **model** render orientation is retained (`getModelOrientation()`), not the object orientation that incorrectly applied placement rotation a second time.
 
-The user's CoX Karil on/off comparison showed large gaps and zigzagging sections. It led to the corrected object/model rotation distinction and source-specific diagonal half-turn; report v2 now separates object and render rotations. Remaining: recheck that same wall in-game. These are tested transform corrections, not yet confirmed fixes for all visible seams. The inspector now includes template coordinates, placement type/config rotation, wall orientation masks and game-object render orientation. For remaining mismatches, click the dedicated **Short wall-corner report** button beside the affected corner and send it with a screenshot, ideally comparing replacement on/off. It lists only the nearest static corners/diagonals (four tiles, at most 12 parts), including source model, placement/extra/baked/render rotations, wall masks, height, registration state and original/source/fitted bounds. It is read-only, works with replacement disabled and never loads assets or rebuilds the scene. Bounds/facing metadata do not establish correct alignment.
+The user's CoX Karil on/off comparison showed large gaps and zigzagging sections. It led to the corrected object/model rotation distinction and the v3 front-surface fitter. The latter keeps shared endpoint anchors and eight-unit overlap; roof height now scales once to avoid truncating the upper joining skin. Report v3 separates object/render rotations and labels the fitting strategy. Remaining: recheck those same walls in-game. Automated geometry checks are green, not confirmation of visible seam closure. The inspector now includes template coordinates, placement type/config rotation, wall orientation masks and game-object render orientation. For remaining mismatches, click the dedicated **Short wall-corner report** button beside the affected corner and send it with a screenshot, ideally comparing replacement on/off. It lists only the nearest static corners/diagonals (four tiles, at most 12 parts), including source model, placement/extra/baked/render rotations, wall masks, height, registration state and original/source/fitted bounds. It is read-only, works with replacement disabled and never loads assets or rebuilds the scene. Bounds/facing metadata do not establish correct alignment.
 
 ## Non-interactable small crypt steps
 

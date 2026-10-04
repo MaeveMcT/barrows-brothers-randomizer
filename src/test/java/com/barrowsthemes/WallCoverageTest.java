@@ -297,9 +297,9 @@ public class WallCoverageTest
 	}
 
 	@Test
-	public void newThemeWallModelOptionStillOnlyRecoloursParkedSmallSteps()
+	public void wallModelOptionStillOnlyRecoloursParkedSmallSteps()
 	{
-		when(config.theme()).thenReturn(BarrowsTheme.PRIFDDINAS);
+		when(config.theme()).thenReturn(BarrowsTheme.INFERNO);
 		when(config.curatedMaterials()).thenReturn(true);
 		when(config.replaceWallModels()).thenReturn(true);
 		plugin.onGameTick(new GameTick());

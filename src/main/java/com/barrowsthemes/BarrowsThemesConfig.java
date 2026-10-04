@@ -13,7 +13,7 @@ public interface BarrowsThemesConfig extends Config
 	default BarrowsTheme theme() { return BarrowsTheme.ZANARIS; }
 
 	@ConfigItem(keyName = "curatedMaterials", name = "Theme material palettes", position = 0,
-		description = "Detailed material roles: cache-sampled for Zanaris/CoX/Inferno, artistic area-inspired colours for the six newer themes. Keeps geometry; manual textures override these mappings.")
+		description = "Cache-sampled material roles for Zanaris, Chambers of Xeric and Inferno. Keeps geometry; manual textures override these mappings.")
 	default boolean curatedMaterials() { return true; }
 
 	@ConfigItem(keyName = "floors", name = "Theme floors", description = "Recolour underground Barrows floors", position = 1)
@@ -23,7 +23,7 @@ public interface BarrowsThemesConfig extends Config
 	default boolean walls() { return true; }
 
 	@ConfigItem(keyName = "replaceWallModels", name = "Replace wall models (experimental)", position = 3,
-		description = "Fit visual-only themed cache models to static crypt walls/corners for all nine themes. Floors and furniture keep their geometry. Keeps collision; may affect GPU performance.")
+		description = "Fit visual-only Zanaris, Chambers of Xeric or Inferno cache models to static crypt walls/corners. Floors and furniture keep their geometry. Keeps collision; may affect GPU performance.")
 	default boolean replaceWallModels() { return false; }
 
 	@ConfigItem(keyName = "varyWallModels", name = "Vary middle wall models", position = 7,

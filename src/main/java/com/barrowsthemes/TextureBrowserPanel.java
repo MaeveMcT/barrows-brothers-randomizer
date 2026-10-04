@@ -39,7 +39,7 @@ final class TextureBrowserPanel extends PluginPanel
 	TextureBrowserPanel(Runnable requestRefresh, Runnable requestInspection, Runnable requestCorners, BiConsumer<String, Integer> select)
 	{
 		add(new JLabel("Barrows materials"));
-		add(new JLabel("<html>Nine theme material palettes:<br>three cache-sampled, six artistic.<br>Textures below are manual overrides.</html>"));
+		add(new JLabel("<html>Three cache-sampled themes:<br>Zanaris, CoX and Inferno.<br>Textures below are manual overrides.</html>"));
 		add(new JLabel("<html>Choose a target, then a texture.<br>Wall faces without existing textures<br>keep the selected colour palette.</html>"));
 		add(target);
 		JButton palette = new JButton("Use theme materials (no override)");

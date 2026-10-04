@@ -125,51 +125,64 @@ public final class WallJoinReplay
 			{6620,32432,3,0,-251,10,3554,9687,-2658}, {6619,32439,3,1024,-250,166,3554,9688,-2662},
 			// Straight-wall control: same native source family, not additional captured placements.
 			{6618,32435,0,0,-250,160,0,0,0}, {6618,32437,0,0,-250,160,0,0,0}};
-		Mesh[] originals = new Mesh[cases.length], replacements = new Mesh[cases.length];
-		int failures = 0, index = 0;
+		int failures = 0;
 		try (Store store = new Store(new File(args[0])))
 		{
 			store.load();
-			for (int[] c : cases)
+			// Rotate the complete reproduction, including neighbour positions, to exercise
+			// every placement orientation. Only turn zero corresponds to live reports.
+			for (int turn = 0; turn < (surface ? 4 : 1); turn++)
 			{
-				Mesh target = new Mesh(load(store, c[0])), source = new Mesh(load(store, c[1]));
-				target.rotate(c[2] * 512); target.yBounds(c[4], c[5]);
-				boolean fittedOk = surface ? WallSurfaceFitter.fit(source.view(ModelData.class), target.view(Model.class), c[2] * 512, type(c))
-					: WallModelFitter.fit(source.view(ModelData.class), target.view(Model.class), c[2] * 512 + c[3]);
-				if (!fittedOk) { throw new AssertionError("Fit failed for " + c[0] + "/" + c[1]); }
-				double worst = 0;
-				for (int height : new int[] {-180, -120, -60})
+				System.out.printf("replay quarter-turn=%d%s%n", turn, turn == 0 ? " (reported placements)" : " (synthetic rotated placements)");
+				Mesh[] originals = new Mesh[cases.length], replacements = new Mesh[cases.length];
+				int index = 0;
+				for (int[] c : cases)
 				{
-					List<double[]> original = target.section(height, c[2], type(c)), fitted = source.section(height, c[2], type(c));
-					if (original.isEmpty()) { throw new AssertionError("Missing original front section"); }
-					for (double[] segment : original)
+					Mesh target = new Mesh(load(store, c[0])), source = new Mesh(load(store, c[1]));
+					target.rotate(c[2] * 512); target.yBounds(c[4], c[5]);
+					boolean fittedOk = surface ? WallSurfaceFitter.fit(source.view(ModelData.class), target.view(Model.class), c[2] * 512, type(c))
+						: WallModelFitter.fit(source.view(ModelData.class), target.view(Model.class), c[2] * 512 + c[3]);
+					if (!fittedOk) { throw new AssertionError("Fit failed for " + c[0] + "/" + c[1]); }
+					double worst = 0;
+					for (int height : new int[] {-180, -120, -60})
 					{
-						for (int endpoint = 0; endpoint < 4; endpoint += 2)
+						List<double[]> original = target.section(height, c[2], type(c)), fitted = source.section(height, c[2], type(c));
+						if (original.isEmpty()) { throw new AssertionError("Missing original front section"); }
+						for (double[] segment : original)
 						{
-							double nearest = Double.POSITIVE_INFINITY;
-							for (double[] replacement : fitted) { nearest = Math.min(nearest, distance(segment[endpoint], segment[endpoint + 1], replacement)); }
-							worst = Math.max(worst, nearest);
+							for (int endpoint = 0; endpoint < 4; endpoint += 2)
+							{
+								double nearest = Double.POSITIVE_INFINITY;
+								for (double[] replacement : fitted) { nearest = Math.min(nearest, distance(segment[endpoint], segment[endpoint + 1], replacement)); }
+								worst = Math.max(worst, nearest);
+							}
 						}
 					}
+					System.out.printf("model=%d source=%d quarter=%d maximum front-surface miss=%.2f local units (limit 24)%n", c[0], c[1], c[2], worst);
+					if (worst > 24) { failures++; }
+					originals[index] = target; replacements[index++] = source;
 				}
-				System.out.printf("model=%d source=%d quarter=%d maximum front-surface miss=%.2f local units (limit 24)%n", c[0], c[1], c[2], worst);
-				if (worst > 24) { failures++; }
-				originals[index] = target; replacements[index++] = source;
-			}
-			for (int[] pair : new int[][] {{0,3},{1,3},{0,2},{8,2},{8,9},{4,5},{4,6},{7,6}})
-			{
-				int i = pair[0], j = pair[1];
-				double originalGap = 0, fittedGap = 0;
-				for (int offset : new int[] {60,120,180})
+				for (int[] pair : new int[][] {{0,3},{1,3},{0,2},{8,2},{8,9},{4,5},{4,6},{7,6}})
 				{
-					double height = Math.min(cases[i][8], cases[j][8]) - offset;
-					originalGap = Math.max(originalGap, separation(worldSection(originals[i],cases[i],height),worldSection(originals[j],cases[j],height)));
-					fittedGap = Math.max(fittedGap, separation(worldSection(replacements[i],cases[i],height),worldSection(replacements[j],cases[j],height)));
+					int i = pair[0], j = pair[1];
+					double originalGap = 0, fittedGap = 0;
+					for (int offset : new int[] {60,120,180})
+					{
+						double height = Math.min(cases[i][8], cases[j][8]) - offset;
+						originalGap = Math.max(originalGap, separation(worldSection(originals[i],cases[i],height),worldSection(originals[j],cases[j],height)));
+						fittedGap = Math.max(fittedGap, separation(worldSection(replacements[i],cases[i],height),worldSection(replacements[j],cases[j],height)));
+					}
+					System.out.printf("join=%d/%d original gap=%.2f fitted gap=%.2f local units%n",i,j,originalGap,fittedGap);
+					if (fittedGap > originalGap + 8) { failures++; }
 				}
-				System.out.printf("join=%d/%d original gap=%.2f fitted gap=%.2f local units%n",i,j,originalGap,fittedGap);
-				if (fittedGap > originalGap + 8) { failures++; }
+				for (int[] c : cases)
+				{
+					c[2] = (c[2] + 1) & 3;
+					int oldX = c[6]; c[6] = c[7]; c[7] = -oldX;
+				}
 			}
 		}
 		if (failures > 0) { throw new AssertionError(failures + " replay checks failed (front miss >24 or join gap >original+8 local units)"); }
+		System.out.println(surface ? "PASS: 48 front-surface and 32 neighbour-join checks across four rotations." : "PASS: reported-placement bounds replay.");
 	}
 }

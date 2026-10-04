@@ -58,6 +58,11 @@ public class WallModelReplacementsTest
 
 	private ModelData source()
 	{
+		return source(new float[] {-128,128,-128,128}, new float[] {-400,-400,0,0}, new float[] {-128,128,-128,128});
+	}
+
+	private ModelData source(float[] x, float[] y, float[] z)
+	{
 		ModelData source = mock(ModelData.class);
 		when(source.shallowCopy()).thenAnswer(invocation -> {
 			ModelData copy = mock(ModelData.class);
@@ -65,9 +70,9 @@ public class WallModelReplacementsTest
 			when(copy.cloneVertices()).thenReturn(copy);
 			when(copy.cloneColors()).thenReturn(copy);
 			when(copy.getVerticesCount()).thenReturn(4);
-			when(copy.getVerticesX()).thenReturn(new float[] {-128, 128, -128, 128});
-			when(copy.getVerticesY()).thenReturn(new float[] {-400, -400, 0, 0});
-			when(copy.getVerticesZ()).thenReturn(new float[] {-128, 128, -128, 128});
+			when(copy.getVerticesX()).thenReturn(x.clone());
+			when(copy.getVerticesY()).thenReturn(y.clone());
+			when(copy.getVerticesZ()).thenReturn(z.clone());
 			when(copy.getFaceCount()).thenReturn(2);
 			when(copy.getFaceIndices1()).thenReturn(new int[] {0, 0});
 			when(copy.getFaceIndices2()).thenReturn(new int[] {1, 3});
@@ -240,6 +245,8 @@ public class WallModelReplacementsTest
 		verify(created.get(0)).setLocation(new LocalPoint(64, 64), 3);
 		verify(created.get(0)).setZ(200);
 		verify(created.get(0)).setOrientation(256);
+		verify(fittedCopies.get(0)).light(ModelData.DEFAULT_AMBIENT + 20, ModelData.DEFAULT_CONTRAST * 2,
+			ModelData.DEFAULT_X, ModelData.DEFAULT_Y, ModelData.DEFAULT_Z);
 	}
 
 	@Test
@@ -285,6 +292,8 @@ public class WallModelReplacementsTest
 		assertTrue(replacements.refresh(client, scene, BarrowsTheme.ZANARIS, false, true, true));
 		assertArrayEquals(new int[] {-2, -2, -2}, colours);
 		verify(created.get(0)).setZ(-75);
+		verify(fittedCopies.get(0)).light(ModelData.DEFAULT_AMBIENT + 20, ModelData.DEFAULT_CONTRAST,
+			ModelData.DEFAULT_X, ModelData.DEFAULT_Y, ModelData.DEFAULT_Z);
 		assertFalse(replacements.refresh(client, scene, BarrowsTheme.ZANARIS, false, true, true));
 		assertTrue(replacements.refresh(client, scene, BarrowsTheme.ZANARIS, true, false, false));
 		assertArrayEquals(new int[] {10, -1, -2}, colours);
@@ -361,7 +370,9 @@ public class WallModelReplacementsTest
 		assertEquals(-64, fittedCopies.get(0).getVerticesX()[0], .01);
 		assertEquals(0, fittedCopies.get(0).getVerticesY()[2], .01);
 		assertArrayEquals(new float[] {-64, -64, -64, -64, 64, 64}, originalX, 0);
-		verify(created.get(0)).setRadius(87);
+		assertEquals(-72, fittedCopies.get(0).getVerticesZ()[0], 0);
+		assertEquals(72, fittedCopies.get(0).getVerticesZ()[1], 0);
+		verify(created.get(0)).setRadius(73);
 	}
 
 	@Test
@@ -394,15 +405,25 @@ public class WallModelReplacementsTest
 		{
 			for (int quarter = 0; quarter < 4; quarter++)
 			{
-				replacements.clear(); created.clear(); fittedCopies.clear(); originalQuarter(quarter);
+				replacements.clear(); created.clear(); fittedCopies.clear();
+				float[] x = {-64,-54,-64,-54}, z = {54,64,54,64};
+				for (int i = 0; i < x.length; i++)
+				{
+					for (int q = 0; q < quarter; q++) { float oldX = x[i]; x[i] = z[i]; z[i] = -oldX; }
+				}
+				when(original.getVerticesX()).thenReturn(x); when(original.getVerticesZ()).thenReturn(z);
 				Tile tile = wall(1, 16 << quarter, 64);
 				when(tile.getWallObject().getId()).thenReturn(id);
 				when(tile.getWallObject().getConfig()).thenReturn(1 | quarter << 6);
-				tiles(tile); doReturn(source()).when(client).loadModelData(32439);
+				tiles(tile);
+				doReturn(source(new float[] {-64,0,-64,0}, new float[] {-400,-400,0,0}, new float[] {0,64,0,64})).when(client).loadModelData(32439);
 				assertTrue(replacements.refresh(client, scene, BarrowsTheme.CHAMBERS_OF_XERIC));
 				int rotation = quarter;
-				assertEquals(rotation < 2 ? -64f : 64f, fittedCopies.get(0).getVerticesX()[0], 0.1f);
-				assertEquals(rotation == 0 || rotation == 3 ? -64f : 64f, fittedCopies.get(0).getVerticesZ()[0], 0.1f);
+				float[] expectedX = {-77,51,77,-51}, expectedZ = {51,77,-51,-77};
+				assertEquals(expectedX[rotation], fittedCopies.get(0).getVerticesX()[0], 0.1f);
+				assertEquals(expectedZ[rotation], fittedCopies.get(0).getVerticesZ()[0], 0.1f);
+				verify(fittedCopies.get(0)).light(ModelData.DEFAULT_AMBIENT, ModelData.DEFAULT_CONTRAST * 2,
+					ModelData.DEFAULT_X, ModelData.DEFAULT_Y, ModelData.DEFAULT_Z);
 				verify(created.get(0)).setOrientation(0);
 			}
 		}
@@ -432,8 +453,11 @@ public class WallModelReplacementsTest
 					assertTrue(replacements.refresh(client, scene, theme));
 					int nativeQuarter = WallModelSources.extraRotation(theme, id, 9) / 512;
 					int rotation = (quarter + nativeQuarter) & 3;
-					assertEquals(rotation < 2 ? -64f : 64f, fittedCopies.get(0).getVerticesX()[0], 0.1f);
-					assertEquals(rotation == 0 || rotation == 3 ? -64f : 64f, fittedCopies.get(0).getVerticesZ()[0], 0.1f);
+					float extent = theme == BarrowsTheme.CHAMBERS_OF_XERIC ? 72 : 64;
+					assertEquals(rotation < 2 ? -extent : extent, fittedCopies.get(0).getVerticesX()[0], 0.1f);
+					assertEquals(rotation == 0 || rotation == 3 ? -extent : extent, fittedCopies.get(0).getVerticesZ()[0], 0.1f);
+					verify(fittedCopies.get(0)).light(ModelData.DEFAULT_AMBIENT + (theme == BarrowsTheme.ZANARIS ? 20 : 0),
+						ModelData.DEFAULT_CONTRAST * 2, ModelData.DEFAULT_X, ModelData.DEFAULT_Y, ModelData.DEFAULT_Z);
 					verify(created.get(0)).setOrientation(0);
 				}
 			}
@@ -446,14 +470,33 @@ public class WallModelReplacementsTest
 		tiles(wall(0, 1, 64));
 		doReturn(source()).when(client).loadModelData(11909);
 		assertTrue(replacements.refresh(client, scene, BarrowsTheme.ZANARIS));
-		assertTrue(replacements.refresh(client, scene, BarrowsTheme.PRIFDDINAS));
+		assertTrue(replacements.refresh(client, scene, BarrowsTheme.INFERNO));
 		verify(created.get(0)).setActive(false);
 		assertArrayEquals(new int[] {10, -1, -2}, colours);
 		assertEquals(1, created.size());
 	}
 
 	@Test
-	public void everyThemeRegistersItsOwnWallsWithDefinitionLightingAndCleansUp()
+	public void straightWallsUseSofterLightingForEveryThemeAndQuarterTurn()
+	{
+		for (BarrowsTheme theme : BarrowsTheme.values())
+		{
+			for (int quarter = 0; quarter < 4; quarter++)
+			{
+				replacements.clear(); created.clear(); fittedCopies.clear(); originalQuarter(quarter);
+				Tile tile = wall(0, 1 << quarter, 64);
+				when(tile.getWallObject().getConfig()).thenReturn(quarter << 6);
+				tiles(tile); doReturn(source()).when(client).loadModelData(anyInt());
+				assertTrue(replacements.refresh(client, scene, theme));
+				verify(fittedCopies.get(0)).light(ModelData.DEFAULT_AMBIENT + (theme == BarrowsTheme.ZANARIS ? 20 : 0),
+					ModelData.DEFAULT_CONTRAST * 2, ModelData.DEFAULT_X, ModelData.DEFAULT_Y, ModelData.DEFAULT_Z);
+				verify(created.get(0)).setOrientation(0);
+			}
+		}
+	}
+
+	@Test
+	public void everyThemeRegistersItsOwnWallsWithSofterLightingAndCleansUp()
 	{
 		tiles(wall(0, 1, 64));
 		doReturn(source()).when(client).loadModelData(anyInt());
@@ -466,7 +509,7 @@ public class WallModelReplacementsTest
 			WallModelSources.Source selected = WallModelSources.select(theme, ObjectID.BARROWS_CRYPT, 0,
 				new net.runelite.api.coords.WorldPoint(3550, 9690, 0), false);
 			verify(client).loadModelData(selected.modelId);
-			verify(fittedCopies.get(fittedCopies.size() - 1)).light(selected.ambient(), selected.contrast(),
+			verify(fittedCopies.get(fittedCopies.size() - 1)).light(selected.ambient(), selected.contrast() * 2,
 				ModelData.DEFAULT_X, ModelData.DEFAULT_Y, ModelData.DEFAULT_Z);
 			assertArrayEquals(new int[] {-2, -2, -2}, colours);
 			assertFalse(replacements.refresh(client, scene, theme));

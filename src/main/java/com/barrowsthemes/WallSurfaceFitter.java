@@ -32,8 +32,10 @@ final class WallSurfaceFitter
 			if (start && end) { fraction = .5f; }
 			else if (start) { fraction = 0; }
 			else if (end) { fraction = 1; }
-			float sourceRoof = a.roof(fraction), targetRoof = b.roof(type == 1 ? .5f : fraction);
-			float height = targetRoof + clamp((from.y[i] - sourceRoof) / (from.maxY - sourceRoof)) * (to.maxY - targetRoof);
+			// A mid-height section's progress endpoints are not the roof's endpoints.
+			// Scaling height once preserves native roof relief instead of collapsing higher
+			// cell-edge vertices onto a sampled roof and opening upper wall/post joins.
+			float height = to.minY + clamp((from.y[i] - from.minY) / (from.maxY - from.minY)) * (to.maxY - to.minY);
 			float targetMin = type == 1 ? b.sample(height, -1) : -64;
 			float targetMax = type == 1 ? b.sample(height, -2) : 64;
 			float u = targetMin - END_OVERLAP + fraction * (targetMax - targetMin + 2 * END_OVERLAP);
@@ -106,7 +108,6 @@ final class WallSurfaceFitter
 		float minY, maxY;
 		final float[] min = new float[ROWS], max = new float[ROWS];
 		final float[][] curve = new float[ROWS][COLUMNS];
-		final float[] roof = new float[COLUMNS];
 
 		static Profile build(Geometry g, boolean outerSkin)
 		{
@@ -159,35 +160,7 @@ final class WallSurfaceFitter
 				p.min[row] = p.min[nearest]; p.max[row] = p.max[nearest];
 				System.arraycopy(p.curve[nearest], 0, p.curve[row], 0, COLUMNS);
 			}
-			for (int col = 0; col < COLUMNS; col++)
-			{
-				float u = p.min[ROWS / 2] + (p.max[ROWS / 2] - p.min[ROWS / 2]) * col / (COLUMNS - 1);
-				float roof = Float.POSITIVE_INFINITY;
-				for (int f = 0; f < g.front.length; f++)
-				{
-					if (!g.front[f]) { continue; }
-					roof = Math.min(roof, roofEdge(g, u, g.a[f], g.b[f]));
-					roof = Math.min(roof, roofEdge(g, u, g.b[f], g.c[f]));
-					roof = Math.min(roof, roofEdge(g, u, g.c[f], g.a[f]));
-				}
-				if (!Float.isFinite(roof) || g.maxY - roof < 1) { return null; }
-				p.roof[col] = roof;
-			}
 			return p;
-		}
-
-		private static float roofEdge(Geometry g, float u, int a, int b)
-		{
-			if (u < Math.min(g.u[a], g.u[b]) - .01f || u > Math.max(g.u[a], g.u[b]) + .01f) { return Float.POSITIVE_INFINITY; }
-			float span = g.u[b] - g.u[a];
-			return Math.abs(span) < .001f ? Math.min(g.y[a], g.y[b]) : g.y[a] + clamp((u - g.u[a]) / span) * (g.y[b] - g.y[a]);
-		}
-
-		float roof(float fraction)
-		{
-			float col = clamp(fraction) * (COLUMNS - 1);
-			int lo = (int) col, hi = Math.min(COLUMNS - 1, lo + 1);
-			return roof[lo] + (col - lo) * (roof[hi] - roof[lo]);
 		}
 
 		private static int edge(Geometry g, float height, int a, int b, float[] segments, int offset)

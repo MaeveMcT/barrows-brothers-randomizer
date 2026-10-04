@@ -1,66 +1,43 @@
 # Model-first themes
 
-**Checkpoint status:** the CoX surface-fitting experiment is unfinished (five failing tests, two failing replay joins). Current rotation/orientation findings and continuation instructions: [agent-handoff.md](agent-handoff.md).
-
-All nine current themes now have explicit wall-model sets. Enable **Walls / scenery** and **Replace wall models (experimental)** to use them. This is real cache geometry fitted to Barrows, not another recolour of Barrows walls. Floors, furniture and the parked crypt-scenery experiment remain material-only.
+The supported themes are **Zanaris**, **Chambers of Xeric** and **Inferno**. Enable **Theme walls and crypt scenery** and **Replace wall models (experimental)** to use their native wall assets. Floors, furniture and the parked crypt-scenery experiment remain material-only. The six additional themes have been removed rather than extending unverified generic corner deformation to them.
 
 ## Source evidence
 
-Inspected a private copy of the local Jagex cache with [WallModels.java](../tools/WallModels.java); no cache assets or keys are distributed. The idx2 fingerprint remains `8eea5056e4005bdf40483f6f0037f3da82c78a92f762f769165068c67a8e8cff`. All selected new models decoded successfully, with zero textured faces. Their definitions have animation `-1`, no mirroring or retexture tables, and scale `128/128/128`.
+Models were inspected in a private cache copy using [WallModels.java](../tools/WallModels.java). No cache assets or keys are distributed. The idx2 fingerprint was `8eea5056e4005bdf40483f6f0037f3da82c78a92f762f769165068c67a8e8cff`. Model IDs have no gameval constants; source object names use RuneLite's gameval definitions. Detailed provenance: [material-research.md](material-research.md).
 
-Definition names/IDs come from RuneLite's [ObjectID](https://github.com/runelite/runelite/blob/4d7df3fd871fea1331cb32ddc6e14f286de8f16d/runelite-api/src/main/java/net/runelite/api/gameval/ObjectID.java) and [ObjectID1](https://github.com/runelite/runelite/blob/4d7df3fd871fea1331cb32ddc6e14f286de8f16d/runelite-api/src/main/java/net/runelite/api/gameval/ObjectID1.java). Model/type, recolour and lighting metadata follows [ObjectLoader](https://github.com/runelite/runelite/blob/4d7df3fd871fea1331cb32ddc6e14f286de8f16d/cache/src/main/java/net/runelite/cache/definitions/loaders/ObjectLoader.java); mesh availability and bounds follow [ModelLoader](https://github.com/runelite/runelite/blob/4d7df3fd871fea1331cb32ddc6e14f286de8f16d/cache/src/main/java/net/runelite/cache/definitions/loaders/ModelLoader.java). Model IDs have no gameval constants.
+| Theme | Source definitions | Straight pool | Type-1 post source | Type-9 main / inner source |
+|---|---|---|---:|---|
+| Zanaris | `FAIRY_WALL_MUSH_GREEN/RED` and variants; `FAIRY_WALL` | 11909, 11910, 11911, 11912 | 11889 | 11890 / 11890 |
+| Chambers of Xeric | `RAIDS_WALL_1/2` | 32435, 32437 | 32439 | 32432 / 32432 |
+| Inferno | `INFERNO_WALL_EDGE_LARGE_01..06` and native corners | 33064, 33076, 33077, 33065, 33067, 33066 | 33064, rotated 45° | 33063 / 33074 |
 
-| Theme | Source definitions | Straight pool | Diagonal | Corner |
-|---|---|---|---|---|
-| Prifddinas | `PRIF_HOUSE_WALL/2` (36247/36248) | 37493, 37497 | 37474 | 37500 |
-| Ancient Pyramid | `FOUR_DIAMONDS_PYRAMID_WALL/CORNER` (6539/6540) | 6254 | 6254, rotated 45° | 6247 |
-| Darkmeyer | `WALLKIT_DRAKAN01_DEFAULT01_DARKMEYER` / `...DAMAGED01_DARKMEYER` (61518/61520) | 60820, 60824 | 60821 | 60823 |
-| Fremennik ice caves | `HUNTING_POLAR_CAVEWALL_FACE1` (19693) | 9963 | 9964 | 9965 |
-| Dorgesh-Kaan | `DORGESH_GROUND_WALLS_INNER`, `DORGESH_FIRST_WALLS_INNER`, `DORGESH_GROUND_WALLS_INNER_WINDOW` (22898/22906/22902) | 23757, 23749, 23766 | 23758 | 23760 |
-| Abyss | `RCU_ABYSSAL_WALL/BULGE` (26150/26153) | 7413, 7416 | 7414 | 7415 |
+Straight variants use stable instance-template coordinates, never per-tick random choices. Disabling variation uses the first source. Inferno's post is a deliberate adaptation of an actual Inferno wall edge, not a native diagonal post.
 
-Zanaris, CoX and Inferno retain their existing cache-backed wall sets; see [material-research.md](material-research.md). Straight variants use stable instance-template coordinates, never per-tick random choices. Disabling variation uses the first source.
+Source models are untextured coloured geometry. Zanaris reproduces ambient offset `+20`; CoX reproduces wall recolour `29574 → 29194`. The retained source definitions use default contrast. Replacement crypt walls use a deliberate **2× lighting-contrast divisor** (`1536` rather than `768`) to reduce directional brightness variation without increasing ambient or changing the light vector. The same policy applies to straight walls, posts and main/inner corners in all three themes; geometry, facing and seams are untouched. Visual quality still needs an in-game check. Missing assets, unsupported shapes and protected shared arrays retain originals; no unrelated fallback meshes are used.
 
-**Adaptations:** the ice theme uses northern polar-hunter cave geometry, not a verified reconstruction of a particular Fremennik dungeon. Prifddinas uses house walls, not giant city-boundary walls or new crystal effects. Pyramid diagonals reuse the actual pyramid wall with a rotation; this is not a native diagonal definition. Source shapes are fitted independently to original model-space bounds, so native proportions are deliberately changed. Large 3×2 Prifddinas city walls and 7×7 Duke ice chunks were rejected for this first pass.
+## Fitting and orientation
 
-## Native colours and lighting
+Original type 0 is a straight wall, type 1 a small triangular diagonal post, and type 9 a full curved diagonal wall. Native source meshes do not necessarily occupy the same surfaces despite similar whole-mesh bounds.
 
-Source meshes retain their own materials rather than receiving the artistic Barrows role palette. Definition recolours and ambient/contrast offsets are reproduced on detached copies:
+- Zanaris and Inferno retain bounding-box fitting and their existing source-specific native-facing adjustments.
+- CoX uses horizontal front-surface profiles, shared cell anchors and eight-local-unit endpoint overlap. Height scales once to the original visible height, with floor capped at `y=0`; this avoids collapsing upper endpoint vertices onto a sampled roof. It preserves relative native roof relief, not the exact original roof envelope.
+- Baked placement/native rotation is separate from actual render orientation. `GameObject.getModelOrientation()` is retained; `getOrientation()` would double-rotate typical static models.
 
-| Theme | Ambient offset | Decoded contrast offset | Recolour table |
-|---|---:|---:|---|
-| Prifddinas | 20 | 250 | `7465/6435/5404/-22423/-22440/-22456 → 3350/3346/3470/7465/6435/5404` |
-| Ancient Pyramid | 0 | 1000 | `10434 → 8526` |
-| Darkmeyer | 10 | 2500 | `284/278/268/549/547/419 → 5404/5400/5392/173/169/167` |
-| Polar ice | 30 | 750 | `7442/7446/7322/7326/7331/7335 → -29238/-29234/-31406/-31522/-27537/-22407` |
-| Dorgesh-Kaan | 35 | 0 | none |
-| Abyss | 0 | 0 | none |
+| Theme | Native post offset | Native main offset | Native inner offset |
+|---|---:|---:|---:|
+| Zanaris | 0 | 1024 | 0 |
+| Chambers of Xeric | 0 | 0 | 0 |
+| Inferno | 256 | 512 | 512 |
 
-Contrast is already multiplied by 25 by the cache loader; runtime adds these decoded offsets to `ModelData.DEFAULT_CONTRAST` once. Negative colour values are signed representations of packed unsigned HSL values. Native lighting metadata is not a guarantee of matching the source area's appearance in Barrows.
-
-## Corner facing
-
-[CornerFacing.java](../tools/CornerFacing.java) compared normalized horizontal slices against original models 6620 (main) and 6621 (inner). These quarter-turn offsets select the lowest sampled score, not verified visual correctness:
-
-| Theme | Main corner offset | Inner corner offset |
-|---|---:|---:|
-| Prifddinas | 1024 | 0 |
-| Ancient Pyramid | 512 | 0 |
-| Darkmeyer | 1024 | 0 |
-| Polar ice | 0 | 1024 |
-| Dorgesh-Kaan | 0 | 1024 |
-| Abyss | 0 | 1024 |
-
-All offsets compose with the four original placement rotations; actual **model** render orientation remains separate. A live CoX follow-up corrected accidental double rotation of game-object corners by using `getModelOrientation()` instead of object `getOrientation()`. The v2 CoX diagonal half-turn failed live review and was undone: its unsigned slice heuristic ignored face winding. CoX currently uses the unfinished front-surface fitter rather than another rotation adjustment; see [agent-handoff.md](agent-handoff.md). Missing assets, unsupported shapes and protected shared arrays retain original geometry/material treatment. Existing atomic staging, retry and cleanup rules apply to every theme.
-
-## Future theme rule
-
-New themes must include researched, explicit wall geometry rather than ship as recolour-only presets. Record source definitions, supported shapes, native materials/lighting and any deliberate adaptations here. Never silently use another theme's model set. The all-theme mapping test requires every enum entry to supply its own shapes; adding a theme requires extending that test and its expected sources. Where suitable assets cannot be established, defer the theme instead of presenting recolours as model support.
+The Zanaris/Inferno offsets came from offline unsigned slice comparisons, not comprehensive live verification. CoX's failed v2 post half-turn was removed because it reversed the visible front. The corrected CoX fitter passes the four-rotation replay; the user subsequently reported that its corners look better. Door clearance, cutaways, both planes and all variants still need review. Reproduction and limitations: [agent-handoff.md](agent-handoff.md).
 
 ## Short corner diagnostics
 
-The sidebar's **Short wall-corner report** produces a separate, bounded snapshot of nearby static corner/diagonal replacements, without the full scenery/NPC listing. Stand beside the affected corner, copy the report, and pair it with a screenshot. Report v3 distinguishes object orientation from actual model render rotation and labels `fit=front-surface profile` (CoX) versus `fit=bounds`. It reports theme, template location, type/slot, source model, placement/extra/baked/render rotations, object rotation or wall masks, height, registration/protection status and original/native-source/fitted bounds. It reads existing geometry and caches only: no reset, new assets or replacement registration. Disabled replacement still reports candidate placements; uncached bounds are unavailable. Matching bounds do not prove matching corner surfaces.
+The sidebar's **Short wall-corner report** creates a bounded, read-only snapshot of nearby static corners/posts. Report v3 distinguishes object orientation from actual model render rotation and labels `fit=front-surface profile` (CoX) versus `fit=bounds`. It lists template positions, type/slot, source model, placement/extra/baked/render rotations, height, registration status and bounds. Disabled replacement still reports candidates; it never loads assets or rebuilds walls. Matching bounds or registration do not prove matching surfaces.
 
-## In-game review required
+## In-game review
 
-Compare all nine themes in both tunnels and tombs, including all four corner orientations, seams, diagonals, doorway clearance, roof cutaways, brightness and FPS. Switch themes with replacement enabled, toggle it off, disable/re-enable and reload. Confirm originals return without stale or invisible faces and interactions/collision are unchanged. Automated builds/tests establish mapping and lifecycle evidence only. The user's CoX comparison demonstrated an alignment failure that persisted with v2 rotations; the subsequent v3 surface-fitting experiment remains unverified in-game and has failing automated checks. The six new-theme meshes also remain unverified.
+Compare all three themes in tunnels and tombs: seams, all four corner orientations, doorway clearance, roof cutaways, native lighting and FPS. Switch themes, toggle replacement off, disable/re-enable and reload. Confirm originals return without stale/invisible faces and interactions/collision remain unchanged.
+
+Future themes must have researched native assets and comparable signed-skin/join evidence before enabling fitting. Arbitrary sparse meshes cannot follow every original curved skin using vertex deformation alone. Do not restore the removed themes as recolour-only presets or borrow unrelated geometry.

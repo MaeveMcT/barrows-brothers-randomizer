@@ -32,6 +32,9 @@ import org.slf4j.LoggerFactory;
 final class WallModelReplacements
 {
 	private static final Logger log = LoggerFactory.getLogger(WallModelReplacements.class);
+	// ModelData contrast divides the directional lighting term: doubling it halves
+	// light/dark variation while retaining source ambient and the world-space light direction.
+	private static final int WALL_LIGHTING_CONTRAST_MULTIPLIER = 2;
 	private final Map<int[], int[]> hidden = new IdentityHashMap<>();
 	private final List<RuneLiteObject> objects = new ArrayList<>();
 	private final Map<Integer, ModelData> sources = new HashMap<>();
@@ -181,7 +184,10 @@ final class WallModelReplacements
 			: WallModelFitter.fit(copy, placement.original, placement.modelRotation);
 		if (!fit) { return null; }
 		int ambient = placement.source.ambient();
-		Model model = copy.light(ambient, placement.source.contrast(), ModelData.DEFAULT_X, ModelData.DEFAULT_Y, ModelData.DEFAULT_Z);
+		int contrast = placement.source.contrast();
+		// Use one lighting policy for straights, posts and both corner roles. No pose/mesh changes.
+		if (WallModelSources.isCryptWall(placement.owner.getId())) { contrast *= WALL_LIGHTING_CONTRAST_MULTIPLIER; }
+		Model model = copy.light(ambient, contrast, ModelData.DEFAULT_X, ModelData.DEFAULT_Y, ModelData.DEFAULT_Z);
 		if (model != null) { variants.put(variant, model); }
 		return model;
 	}

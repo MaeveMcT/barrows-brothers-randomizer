@@ -37,14 +37,14 @@ java -cp "$CACHE_CP:/tmp/barrows-study-classes" CornerFacing /path/to/cache-copy
   6620 11890 32432 33063 33074
 java -cp "$CACHE_CP:/tmp/barrows-study-classes" CornerFacing /path/to/cache-copy \
   6621 11890 32432 33063 33074
-# CoX diagonal native-facing comparison (best sampled quarter-turn: 1024)
+# Historical unsigned CoX comparison: 1024 reversed the visible front; do not apply it
 java -cp "$CACHE_CP:/tmp/barrows-study-classes" CornerFacing /path/to/cache-copy \
   6619 32439
 ```
 
-## Wall-join replay (unfinished investigation)
+## Wall-join replay (live review required)
 
-`WallJoinReplay.java` checks captured Karil wall sections and neighbouring joins against production fitters using a private cache copy, no keys. Its reflective adapters implement public mesh interfaces **offline only**; it is outside `src/` and never packaged in the plugin. It approximates live y contouring from reported bounds, not an exact live mesh or GPU renderer replay. Default mode reconstructs the failed v2 box fit; `--surface` exercises the current experiment, which still fails two joins. Commands, failure evidence and next steps: [../docs/agent-handoff.md](../docs/agent-handoff.md#offline-replay-the-useful-feedback-loop).
+`WallJoinReplay.java` checks captured Karil wall sections and neighbouring joins against production fitters using a private cache copy, no keys. Its reflective adapters implement public mesh interfaces **offline only**; it is outside `src/` and never packaged in the plugin. It approximates live y contouring from reported bounds, not an exact live mesh or GPU renderer replay. Default mode reconstructs the failed v2 box fit. `--surface` exercises the current fitter and synthetically rotates the whole reproduction through all four placements: 48 front-surface checks and 32 neighbour joins pass after removal of collapsed endpoint-roof mapping. These checks retain the original 24-unit front-miss and original-gap-plus-8 join allowances; they are not proof of rendering or exact roof clearance. Commands, historical failures and current next steps: [../docs/agent-handoff.md](../docs/agent-handoff.md#offline-replay-the-useful-feedback-loop).
 
 ## NPC movement decoder audit
 
@@ -70,4 +70,4 @@ java -cp "$CACHE_CP:/tmp/barrows-study-classes" NativeAttackStudy /path/to/cache
 
 NPC findings, mappings and limitations: [`../docs/npc-animation-research.md`](../docs/npc-animation-research.md).
 
-Findings and chosen wall mappings: [`../docs/material-research.md`](../docs/material-research.md) and [`../docs/theme-models.md`](../docs/theme-models.md). New-theme metadata IDs: `36247 36248 6539 6540 61518 61520 19693 22898 22906 22902 26150 26153`. New corner models: `37500 6247 60823 9965 23760 7415`; compare each against both `6620` and `6621`.
+Findings and chosen wall mappings: [`../docs/material-research.md`](../docs/material-research.md) and [`../docs/theme-models.md`](../docs/theme-models.md). The six additional themes were removed; only Zanaris, CoX and Inferno mappings remain supported.

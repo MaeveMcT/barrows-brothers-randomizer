@@ -41,7 +41,10 @@ public class WallSurfaceFitterTest
 			Model target = strip(Model.class, targetX, new float[] {-250,-250,-250,0,0,0,160}, targetZ);
 			int[] indices = source.getFaceIndices2().clone();
 			assertTrue(WallSurfaceFitter.fit(source, target, quarter * 512, 9));
-			for (int i = 0; i < 6; i++) { assertEquals(targetX[i], x[i], 1); assertEquals(targetZ[i], z[i], 1); }
+			float[] expectedX = {-72,-8,72,-72,-8,72}, expectedZ = {-72,8,72,-72,8,72};
+			rotate(expectedX, expectedZ, quarter);
+			for (int i = 0; i < 6; i++) { assertEquals(expectedX[i], x[i], 1); assertEquals(expectedZ[i], z[i], 1); }
+			assertFrontFacing(source, quarter);
 			assertEquals(-250, source.getVerticesY()[0], 0); assertEquals(0, source.getVerticesY()[3], 0);
 			assertArrayEquals(originalX, target.getVerticesX(), 0); assertArrayEquals(originalZ, target.getVerticesZ(), 0);
 			assertArrayEquals(indices, source.getFaceIndices2());
@@ -56,7 +59,42 @@ public class WallSurfaceFitterTest
 		Model target = strip(Model.class, new float[] {-64,-59,-54,-64,-59,-54,64},
 			new float[] {-250,-250,-250,0,0,0,160}, new float[] {54,59,64,54,59,64,-64});
 		assertTrue(WallSurfaceFitter.fit(source, target, 0, 1));
-		for (int i = 0; i < 6; i++) { assertEquals(target.getVerticesX()[i], source.getVerticesX()[i], 1); assertEquals(target.getVerticesZ()[i], source.getVerticesZ()[i], 1); }
+		// The post is anchored on the NW cell corner (v=64), not backing bounds.
+		assertArrayEquals(new float[] {-77,-64,-51,-77,-64,-51}, java.util.Arrays.copyOf(source.getVerticesX(), 6), 1);
+		assertArrayEquals(new float[] {51,64,77,51,64,77}, java.util.Arrays.copyOf(source.getVerticesZ(), 6), 1);
+		assertFrontFacing(source, 0);
+		assertEquals(0, source.getVerticesY()[3], 0);
+		assertEquals(160, target.getVerticesY()[6], 0);
+	}
+
+	private void assertFrontFacing(ModelData mesh, int quarter)
+	{
+		float[] x = mesh.getVerticesX().clone(), z = mesh.getVerticesZ().clone(), y = mesh.getVerticesY();
+		rotate(x, z, (4 - quarter) & 3);
+		for (int f = 0; f < mesh.getFaceCount(); f++)
+		{
+			int a = mesh.getFaceIndices1()[f], b = mesh.getFaceIndices2()[f], c = mesh.getFaceIndices3()[f];
+			float ux = x[b]-x[a], uy = y[b]-y[a], uz = z[b]-z[a];
+			float vx = x[c]-x[a], vy = y[c]-y[a], vz = z[c]-z[a];
+			assertTrue("front face " + f, -(uy*vz-uz*vy) + (ux*vy-uy*vx) > 0);
+		}
+	}
+
+	@Test
+	public void raisedNativeEndpointVerticesMustNotCollapseOntoMidHeightRoofSample()
+	{
+		for (int quarter = 0; quarter < 4; quarter++)
+		{
+			ModelData source = strip(ModelData.class, new float[] {32,-16,64,-16,-16,64,20},
+				new float[] {-400,-400,-400,0,0,0,-350}, new float[] {-64,16,-32,-64,16,16,-64});
+			float[] x = {-64,0,64,-64,0,64}, z = {-64,0,64,-64,0,64};
+			rotate(x, z, quarter);
+			Model target = strip(Model.class, x, new float[] {-250,-250,-250,0,0,0}, z);
+			assertTrue(WallSurfaceFitter.fit(source, target, quarter * 512, 9));
+			assertEquals(-250, source.getVerticesY()[0], 0);
+			assertEquals(-219, source.getVerticesY()[6], 0);
+			assertTrue(source.getVerticesY()[6] > source.getVerticesY()[0]);
+		}
 	}
 
 	@Test

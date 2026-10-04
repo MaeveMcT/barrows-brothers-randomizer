@@ -89,6 +89,7 @@ public class BarrowsThemesPlugin extends Plugin
 	@Override
 	protected void startUp()
 	{
+		migrateThemeConfig(configManager);
 		migrateAnimationConfig(configManager);
 		active = true;
 		renderCallbacks.register(disguiseListener);
@@ -98,6 +99,18 @@ public class BarrowsThemesPlugin extends Plugin
 		navigation = NavigationButton.builder().tooltip("Barrows textures").icon(TextureBrowserPanel.icon()).priority(6).panel(texturePanel).build();
 		clientToolbar.addNavigation(navigation);
 		clientThread.invokeLater(() -> { if (active) { apply(); refreshDisguises(); } });
+	}
+
+	static void migrateThemeConfig(ConfigManager manager)
+	{
+		if (manager == null) { return; }
+		String saved = manager.getConfiguration(BarrowsThemesConfig.GROUP, "theme");
+		if (saved == null) { return; }
+		try { BarrowsTheme.valueOf(saved); }
+		catch (IllegalArgumentException ex)
+		{
+			manager.setConfiguration(BarrowsThemesConfig.GROUP, "theme", BarrowsTheme.ZANARIS);
+		}
 	}
 
 	static void migrateAnimationConfig(ConfigManager manager)
