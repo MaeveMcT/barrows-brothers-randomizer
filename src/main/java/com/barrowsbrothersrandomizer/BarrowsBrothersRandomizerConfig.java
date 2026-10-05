@@ -18,6 +18,6 @@ public interface BarrowsBrothersRandomizerConfig extends Config
 	default int chanceToRandomize() { return 100; }
 
 	@ConfigItem(keyName = "npcAnimationMode", name = "NPC animation mode", position = 1,
-		description = "Native: native gait/mapped attacks only. Auto: prefer native attacks, otherwise borrow only with classic rig evidence. Force: try brother actions even on unknown rigs. No mode filters NPC IDs.")
+		description = "Native: native gait only. Auto: borrow brother actions only with classic rig evidence. Force: try brother actions even on unknown rigs. No mode filters NPC IDs.")
 	default NpcAnimationMode npcAnimationMode() { return NpcAnimationMode.AUTO; }
 }

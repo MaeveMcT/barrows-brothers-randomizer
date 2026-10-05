@@ -173,6 +173,6 @@ public class BarrowsBrothersRandomizerPlugin extends Plugin
 		}
 		List<NPC> eligible = new ArrayList<>();
 		for (NPC npc : client.getNpcs()) { if (eligibleBrother(npc)) { eligible.add(npc); } }
-		disguises.refresh(client, eligible, config.npcAnimationMode(), true, "", config.chanceToRandomize());
+		disguises.refresh(client, eligible, config.npcAnimationMode(), config.chanceToRandomize());
 	}
 }

@@ -29,8 +29,6 @@ final class BrotherDisguises
 	private final Map<NPC, Disguise> disguises = new IdentityHashMap<>();
 	private final IntUnaryOperator random;
 	private AnimationRigCache rigs;
-	private String overrideText = "";
-	private NpcActionOverrides overrides = new NpcActionOverrides("");
 
 	BrotherDisguises() { this(bound -> ThreadLocalRandom.current().nextInt(bound)); }
 	BrotherDisguises(IntUnaryOperator random) { this.random = random; }
@@ -79,19 +77,17 @@ final class BrotherDisguises
 
 	void refresh(Client client, List<NPC> eligible, boolean useBrotherActions)
 	{
-		refresh(client, eligible, useBrotherActions ? NpcAnimationMode.FORCE : NpcAnimationMode.NATIVE, false, "");
+		refresh(client, eligible, useBrotherActions ? NpcAnimationMode.FORCE : NpcAnimationMode.NATIVE);
 	}
 
-	void refresh(Client client, List<NPC> eligible, NpcAnimationMode mode, boolean nativeAttacks, String rules)
+	void refresh(Client client, List<NPC> eligible, NpcAnimationMode mode)
 	{
-		refresh(client, eligible, mode, nativeAttacks, rules, 100);
+		refresh(client, eligible, mode, 100);
 	}
 
-	void refresh(Client client, List<NPC> eligible, NpcAnimationMode mode, boolean nativeAttacks, String rules, int chance)
+	void refresh(Client client, List<NPC> eligible, NpcAnimationMode mode, int chance)
 	{
 		if (rigs == null) { rigs = new AnimationRigCache(client); }
-		String text = rules == null ? "" : rules;
-		if (!text.equals(overrideText)) { overrideText = text; overrides = new NpcActionOverrides(text); }
 		Set<NPC> present = Collections.newSetFromMap(new IdentityHashMap<>());
 		present.addAll(eligible);
 		for (NPC npc : eligible) { spawn(client, npc, chance); }
@@ -108,7 +104,7 @@ final class BrotherDisguises
 			Disguise disguise = entry.getValue();
 			if (disguise.object != null)
 			{
-				disguise.controller.options(mode, nativeAttacks, overrides);
+				disguise.controller.options(mode);
 				disguise.controller.prepare();
 				continue;
 			}
@@ -121,7 +117,7 @@ final class BrotherDisguises
 				staged = client.createRuneLiteObject();
 				staged.setModel(model.model);
 				NativeNpcAnimation controller = new NativeNpcAnimation(client, entry.getKey(), model.definitionId, rigs);
-				controller.options(mode, nativeAttacks, overrides);
+				controller.options(mode);
 				controller.prepare();
 				staged.setAnimationController(controller);
 				staged.setRadius(60);
@@ -215,7 +211,6 @@ final class BrotherDisguises
 	{
 		StringBuilder out = new StringBuilder("Available NPC definitions: ");
 		out.append(npcIds == null ? "awaiting archive metadata" : npcIds.length).append('\n');
-		out.append(overrides.summary()).append('\n');
 		if (disguises.isEmpty()) { return out.append("No eligible brothers currently tracked.\n").toString(); }
 		for (Map.Entry<NPC, Disguise> entry : disguises.entrySet())
 		{

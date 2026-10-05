@@ -26,32 +26,16 @@ A private copied-cache audit compared all **15 movement fields** against RuneLit
 
 ## Animation policy
 
-- **Auto** (default): native attacks first; otherwise requires full classic frame-map evidence. Shared gait IDs alone are only a hint.
-- **Native only:** native gait and mapped native attacks, never borrowed brother actions.
+- **Auto** (default): borrows brother actions only with full classic frame-map evidence; otherwise retains native gait/static fallback. Shared gait IDs alone are only a hint.
+- **Native only:** native gait only, never borrowed brother actions.
 - **Force:** explicitly tries brother actions before native fallback.
 
-Native attack mappings are always enabled. Custom action overrides and the mapped-native-attack toggle are no longer exposed or used by the plugin.
+There are no explicit native attack mappings, brother-attack classifiers or custom action overrides. NPC definitions have no universal attack-animation field; unsupported brother actions leave native gait/static playback in place.
 
 Rig evidence compares every required classic frame's full transform-type/group-label layout against the selected native gait. Layouts can match across different skeleton IDs. Malformed, incomplete and Maya/weighted combinations are not automatically borrowed. Model skin labels/anatomy remain unverified even when layouts match.
 
-Rig metadata is prepared outside rendering, bounded by caches and at most **24 metadata reads per game tick** across disguises. Native gait/action playback has separate clocks. Action-change notifications are retained for real restarts; the removed recorder does not affect playback. Option changes preserve selection, registration and gait clock.
-
-## Native attack families
-
-Mappings are guarded by current cache-checked idle/walk families and corroborated by full classic idle/attack layouts, not universally discovered or comprehensively verified in-game.
-
-| Family | Explicit definitions | Idle / walk | Attack |
-|---|---|---|---|
-| Chickens | 1173, 1174, 2804, 2805, 2806 | 5386 / 5385 | 5387 |
-| Cows, not calves | 2790, 2791, 2793 | 5852 / 5848 | 5849 |
-| Bats | 2827, 2834 | 4914 / 4913 | 4915 |
-| Bears | 2838, 2839 | 4919 / 4923 | 4925 |
-| Giant rats | 2856, 2859 | 4932 / 4931 | 4933 |
-
-Native attacks trigger only on the explicitly recognized brother weapon/cast actions, not arbitrary hit/death events. They play once on their own clock and restart on genuine action changes/frame resets. Only the built-in researched mappings are used; previously saved numeric overrides do not apply.
-
-Earlier live observations included brother attacks Verac **2062**, Torag **2068**, Guthan **2080**, Karil **2075**, and Ahrim **2079**, along with hit/death/other actions. Skeleton **5485** and bloodworm **2070** remain research candidates, not newly implemented mappings. Target presence and `AnimationChanged` alone are not attack classifiers. No diagnostic recording option remains.
+Rig metadata is prepared outside rendering, bounded by caches and at most **24 metadata reads per game tick** across disguises. Native gait uses its own clock; borrowed actions use the real brother's action/frame. Action-change notifications invalidate prepared compatibility evidence. Option changes preserve selection, registration and gait clock.
 
 ## Remaining checks
 
-Verify the renamed plugin's six-brother scope, targeting, overhead alignment, movement/actions, cleanup and no-reroll option updates in-game. Test oversized/static/model-less choices without filtering or rerolling. Extend native mappings only with reviewed definition/gait/action evidence. Offline commands: [../tools/README.md](../tools/README.md).
+Verify the renamed plugin's six-brother scope, targeting, overhead alignment, movement/actions, cleanup and no-reroll option updates in-game. Test oversized/static/model-less choices without filtering or rerolling. Offline commands: [../tools/README.md](../tools/README.md).

@@ -112,10 +112,10 @@ public class NativeNpcAnimationTest
 		verify(client).applyTransformations(base, action, 0, null, 0);
 	}
 
-	private NativeNpcAnimation configured(NpcAnimationMode mode, boolean attacks, String overrides)
+	private NativeNpcAnimation configured(NpcAnimationMode mode)
 	{
 		NativeNpcAnimation controller = new NativeNpcAnimation(client, brother, 77777, new AnimationRigCache(client));
-		controller.options(mode, attacks, new NpcActionOverrides(overrides));
+		controller.options(mode);
 		object.setAnimationController(controller);
 		return controller;
 	}
@@ -125,7 +125,7 @@ public class NativeNpcAnimationTest
 	{
 		when(brother.getIdlePoseAnimation()).thenReturn(100);
 		when(brother.getWalkAnimation()).thenReturn(101);
-		NativeNpcAnimation controller = configured(NpcAnimationMode.AUTO, false, "");
+		NativeNpcAnimation controller = configured(NpcAnimationMode.AUTO);
 		controller.prepare();
 		assertSame(animated, object.getModel());
 		verify(client, never()).loadAnimation(999);
@@ -140,7 +140,7 @@ public class NativeNpcAnimationTest
 	}
 
 	@Test
-	public void autoBorrowsOnlyAfterAllClassicFrameMapsMatchAndDenyCanOverrideThatEvidence()
+	public void autoBorrowsOnlyAfterAllClassicFrameMapsMatchAndNativeModeDisablesBorrowing()
 	{
 		IndexDataBase frames = mock(IndexDataBase.class), maps = mock(IndexDataBase.class);
 		when(client.getRevision()).thenReturn(240);
@@ -151,12 +151,12 @@ public class NativeNpcAnimationTest
 		when(maps.loadData(7, 0)).thenReturn(new byte[] {1, 1, 1, 0});
 		Animation action = animation(999);
 		when(client.loadAnimation(999)).thenReturn(action);
-		NativeNpcAnimation controller = configured(NpcAnimationMode.AUTO, false, "");
+		NativeNpcAnimation controller = configured(NpcAnimationMode.AUTO);
 		controller.prepare();
 		assertSame(animated, object.getModel());
 		verify(client).applyTransformations(base, action, 0, null, 0);
 		assertTrue(controller.summary().contains("Shared classic frame-map layout"));
-		controller.options(NpcAnimationMode.AUTO, false, new NpcActionOverrides("77777:999=deny")); controller.prepare();
+		controller.options(NpcAnimationMode.NATIVE); controller.prepare();
 		clearInvocations(client);
 		assertSame(animated, object.getModel());
 		verify(client).applyTransformations(base, idle, 0, null, 0);
@@ -164,58 +164,34 @@ public class NativeNpcAnimationTest
 	}
 
 	@Test
-	public void reviewedAllowCanEnableAutoButNativeOnlyAndForceDenyStillRespectPolicy()
+	public void forceCanBorrowWithoutEvidenceButAutoAndNativeKeepNativeGait()
 	{
 		Animation action = animation(999); when(client.loadAnimation(999)).thenReturn(action);
-		NativeNpcAnimation controller = configured(NpcAnimationMode.AUTO, false, "77777:999=allow"); controller.prepare();
+		NativeNpcAnimation controller = configured(NpcAnimationMode.FORCE);
 		assertSame(animated, object.getModel());
 		verify(client).applyTransformations(base, action, 0, null, 0);
-		controller.options(NpcAnimationMode.NATIVE, false, new NpcActionOverrides("77777:999=allow"));
-		clearInvocations(client); object.getModel();
-		verify(client, never()).applyTransformations(eq(base), eq(action), anyInt(), isNull(), eq(0));
-		controller.options(NpcAnimationMode.FORCE, false, new NpcActionOverrides("77777:*=deny"));
-		object.getModel(); verify(client, never()).applyTransformations(eq(base), eq(action), anyInt(), isNull(), eq(0));
+		for (NpcAnimationMode mode : new NpcAnimationMode[] {NpcAnimationMode.AUTO, NpcAnimationMode.NATIVE})
+		{
+			controller.options(mode); controller.prepare();
+			clearInvocations(client); object.getModel();
+			verify(client).applyTransformations(base, idle, 0, null, 0);
+			verify(client, never()).applyTransformations(eq(base), eq(action), anyInt(), isNull(), eq(0));
+		}
 	}
 
 	@Test
-	public void explicitNativeAttackUsesItsOwnClockFinishesOnceAndRestartsOnTheNextBrotherCycle()
-	{
-		Animation nativeAttack = animation(500); when(client.loadAnimation(500)).thenReturn(nativeAttack);
-		when(brother.getAnimationFrame()).thenReturn(2);
-		NativeNpcAnimation controller = configured(NpcAnimationMode.AUTO, true, "77777:999=500");
-		assertSame(animated, object.getModel());
-		verify(client).applyTransformations(base, nativeAttack, 0, null, 0);
-		object.tick(3); assertSame(animated, object.getModel());
-		verify(client).applyTransformations(base, nativeAttack, 1, null, 0);
-		object.tick(100); clearInvocations(client); object.getModel();
-		verify(client).applyTransformations(base, idle, 0, null, 0);
-		assertTrue(controller.summary().contains("awaiting next attack cycle"));
-		when(brother.getAnimationFrame()).thenReturn(0); object.getModel();
-		verify(client).applyTransformations(base, nativeAttack, 0, null, 0);
-		when(brother.getAnimation()).thenReturn(-1); object.getModel();
-		verify(client, never()).loadAnimation(999);
-	}
-
-	@Test
-	public void sourceBackedAnimalAttackWinsOverBorrowingInAutoAndFailureKeepsTheNativeGait()
+	public void formerlyMappedAnimalKeepsNativeGaitWithoutRigEvidence()
 	{
 		when(brother.getId()).thenReturn(net.runelite.api.gameval.NpcID.BARROWS_KARIL);
 		when(brother.getAnimation()).thenReturn(net.runelite.api.gameval.AnimationID.BARROWS_REPEATING_CROSSBOW_FIRE);
 		int cow = net.runelite.api.gameval.NpcID.COW;
-		when(configs.loadData(9, cow)).thenReturn(NativeAttackMappingsTest.metadata(
-			net.runelite.api.gameval.AnimationID.COW_JUST_READY_UPDATE, net.runelite.api.gameval.AnimationID.COW_UPDATE_WALK));
-		Animation cowIdle = animation(net.runelite.api.gameval.AnimationID.COW_JUST_READY_UPDATE);
-		Animation cowAttack = animation(net.runelite.api.gameval.AnimationID.COW_UPDATE_ATTACK);
-		when(client.loadAnimation(cowIdle.getId())).thenReturn(cowIdle);
-		when(client.loadAnimation(cowAttack.getId())).thenReturn(cowAttack);
+		when(configs.loadData(9, cow)).thenReturn(new byte[] {13, 0, 100, 14, 0, 101, 0});
 		NativeNpcAnimation controller = new NativeNpcAnimation(client, brother, cow, new AnimationRigCache(client));
-		controller.options(NpcAnimationMode.AUTO, true, new NpcActionOverrides("")); object.setAnimationController(controller);
-		assertSame(animated, object.getModel()); verify(client).applyTransformations(base, cowAttack, 0, null, 0);
-		when(client.applyTransformations(base, cowAttack, 0, null, 0)).thenThrow(new IllegalArgumentException("rig"));
-		assertSame(animated, object.getModel()); assertSame(animated, object.getModel());
-		verify(client, times(2)).applyTransformations(base, cowAttack, 0, null, 0);
+		controller.options(NpcAnimationMode.AUTO); controller.prepare(); object.setAnimationController(controller);
+		assertSame(animated, object.getModel());
+		verify(client).applyTransformations(base, idle, 0, null, 0);
+		verify(client, never()).loadAnimation(net.runelite.api.gameval.AnimationID.COW_UPDATE_ATTACK);
 		verify(client, never()).loadAnimation(net.runelite.api.gameval.AnimationID.BARROWS_REPEATING_CROSSBOW_FIRE);
-		verify(client, atLeastOnce()).applyTransformations(base, cowIdle, 0, null, 0);
 	}
 
 	@Test
@@ -306,16 +282,6 @@ public class NativeNpcAnimationTest
 		when(client.applyTransformations(base, idle, 0, null, 0)).thenReturn(animated, second);
 		assertSame(animated, object.getModel());
 		assertSame(second, object.getModel());
-	}
-
-	@Test
-	public void actionEventsRestartEvenWhenTheBrotherActionIdAndFrameAreUnchanged()
-	{
-		Animation action = animation(500); when(client.loadAnimation(500)).thenReturn(action);
-		NativeNpcAnimation controller = configured(NpcAnimationMode.NATIVE, true, "77777:999=500");
-		object.getModel(); object.tick(100); object.getModel();
-		controller.actionChanged(); clearInvocations(client); object.getModel();
-		verify(client).applyTransformations(base, action, 0, null, 0);
 	}
 
 	@Test

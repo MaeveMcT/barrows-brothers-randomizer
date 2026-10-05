@@ -70,7 +70,7 @@ public class BrotherDisguisesTest
 
 	private void refreshWithChance(int chance)
 	{
-		disguises.refresh(client, Collections.singletonList(brother), NpcAnimationMode.NATIVE, false, "", chance);
+		disguises.refresh(client, Collections.singletonList(brother), NpcAnimationMode.NATIVE, chance);
 	}
 
 	@Test
@@ -263,11 +263,11 @@ public class BrotherDisguisesTest
 	}
 
 	@Test
-	public void allModesAndOverridesPreserveSelectionAndRegistration()
+	public void allModesPreserveSelectionAndRegistration()
 	{
 		for (NpcAnimationMode mode : NpcAnimationMode.values())
 		{
-			disguises.refresh(client, Collections.singletonList(brother), mode, true, NpcID.CHICKEN + ":*=deny");
+			disguises.refresh(client, Collections.singletonList(brother), mode);
 			assertTrue(disguises.summary().contains("mode=" + mode));
 		}
 		assertEquals(1, picks.get()); assertEquals(1, objects.size());

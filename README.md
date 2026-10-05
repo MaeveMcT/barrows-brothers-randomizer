@@ -8,22 +8,22 @@ A RuneLite **GPU** plugin that gives each Barrows brother a random NPC disguise 
 - Successful chance rolls select uniformly from every available NPC-definition ID in the client's config archive. No size, name, combat, animation or rig filters are applied. Repeats, giant models, static/scenery-like definitions and malformed disguises are possible.
 - Missing definitions, model-less morphs or unavailable models retain the original brother without rerolling. Ready disguises retain their selection through animation-setting changes.
 - The original NPC still owns combat, movement, names, menus, collision, clickboxes and overhead UI. The replacement is a visual render object, not a new NPC actor. Only a successfully registered disguise suppresses the original's later GPU geometry upload; mouse picking is preserved.
-- Native idle, walk, run, crawl and turn sequences are used where available. Unsupported/missing animations keep a static fallback. A small source-backed native-attack table covers five animal families; arbitrary NPC definitions have no universal attack-animation field.
+- Native idle, walk, run, crawl and turn sequences are used where available. Auto borrows brother actions only with classic rig evidence; otherwise native gait or a static pose continues during attacks. There is no explicit NPC attack-animation table.
 - Disguises clean up on despawn, scene transitions, logout and plugin shutdown.
 
 **Removed:** all wall/floor/scenery theming and model replacement, textures, the texture/inspection sidebar, and diagnostic action recording. Scenery is not read or edited by the randomization feature.
 
 ## Animation settings
 
-- **Auto** (default): prefers native attacks; otherwise requires full classic frame-map evidence. Matching idle/walk IDs alone does not authorize borrowing.
-- **Native only:** native gait and mapped native attacks; never borrows brother actions.
+- **Auto** (default): borrows brother actions only with full classic frame-map evidence, otherwise retains native gait/static fallback. Matching idle/walk IDs alone does not authorize borrowing.
+- **Native only:** native gait only; never borrows brother actions.
 - **Force brother actions:** tries the brother's current action/frame even on unknown rigs. This can produce distortion.
 
-Researched native attack mappings are always enabled; there is no separate toggle or custom action-override setting. Previously saved values for those removed settings are cleared and do not affect playback. Existing saved animation-mode choices are preserved.
+There are no explicit native attack mappings or custom action overrides. Previously saved values for the removed attack/override settings are cleared and do not affect playback. Existing saved animation-mode choices are preserved.
 
 Only the NPC animation mode migrates from the interim Barrows Brothers Random NPC configuration (when present), otherwise the former Barrows Themes configuration, without overwriting settings already saved under the new plugin identity. Old theme, texture, randomization-toggle and recording settings do not control this plugin. Migration runs once, so resetting new settings does not reimport old values.
 
-Source evidence, supported families and animation limitations: [docs/npc-animation-research.md](docs/npc-animation-research.md).
+Source evidence and animation limitations: [docs/npc-animation-research.md](docs/npc-animation-research.md).
 
 ## Build and development
 

@@ -12,7 +12,7 @@ import net.runelite.api.IndexDataBase;
 import net.runelite.api.Model;
 import net.runelite.api.NPC;
 
-/** Native gait plus explicitly mapped attacks or evidence-gated brother actions. Never changes the real actor. */
+/** Native gait plus evidence-gated brother actions. Never changes the real actor. */
 @Slf4j
 final class NativeNpcAnimation extends AnimationController
 {
@@ -20,14 +20,11 @@ final class NativeNpcAnimation extends AnimationController
 	private final NPC brother;
 	private final int sourceId;
 	private final BrotherActionAnimation brotherActions;
-	private final NativeActionAnimation nativeActions;
 	private final AnimationRigCache rigs;
 	private final Map<Integer, Animation> loaded = new HashMap<>();
 	private final Set<Integer> unsupported = new HashSet<>();
 	private NativeNpcAnimations sequences;
 	private NpcAnimationMode mode = NpcAnimationMode.NATIVE;
-	private NpcActionOverrides overrides = new NpcActionOverrides("");
-	private boolean nativeAttacks;
 	private int metadataAttempt = Integer.MIN_VALUE, animationAttempt = Integer.MIN_VALUE;
 	private int preparedTick = Integer.MIN_VALUE, preparedAction = -1;
 	private String evidence = "Compatibility not prepared";
@@ -47,18 +44,17 @@ final class NativeNpcAnimation extends AnimationController
 		super(client, (Animation) null);
 		this.client = client; this.brother = brother; this.sourceId = sourceId; this.rigs = rigs;
 		brotherActions = new BrotherActionAnimation(client, brother);
-		nativeActions = new NativeActionAnimation(client, brother);
 	}
 
-	void options(NpcAnimationMode mode, boolean nativeAttacks, NpcActionOverrides overrides)
+	void options(NpcAnimationMode mode)
 	{
 		NpcAnimationMode next = mode == null ? NpcAnimationMode.NATIVE : mode;
-		if (this.mode == next && this.nativeAttacks == nativeAttacks && this.overrides == overrides) { return; }
-		this.mode = next; this.nativeAttacks = nativeAttacks; this.overrides = overrides;
+		if (this.mode == next) { return; }
+		this.mode = next;
 		preparedTick = Integer.MIN_VALUE; preparedAction = -1; evidence = "Compatibility not prepared";
 	}
 
-	void actionChanged() { nativeActions.restart(); preparedTick = Integer.MIN_VALUE; }
+	void actionChanged() { preparedTick = Integer.MIN_VALUE; }
 
 	private void metadata()
 	{
@@ -81,12 +77,8 @@ final class NativeNpcAnimation extends AnimationController
 		try
 		{
 			metadata();
-			int rule = overrides.rule(sourceId, action);
 			if (action < 0) { evidence = "No current brother action"; }
-			else if (rule == NpcActionOverrides.DENY) { evidence = "Explicit deny override"; }
-			else if (rule >= 0) { evidence = "Explicit native sequence override #" + rule; }
 			else if (mode == NpcAnimationMode.NATIVE) { evidence = "Native-only mode"; }
-			else if (rule == NpcActionOverrides.ALLOW) { evidence = "Explicit allow override (user-reviewed)"; }
 			else if (mode == NpcAnimationMode.FORCE) { evidence = "Forced brother action; no compatibility guarantee"; }
 			else if (sequences == null || !sequences.complete()) { evidence = "Incomplete NPC metadata; automatic borrowing disabled"; }
 			else
@@ -100,18 +92,10 @@ final class NativeNpcAnimation extends AnimationController
 
 	private boolean borrow()
 	{
-		int action = brother.getAnimation(), rule = overrides.rule(sourceId, action);
-		if (action < 0 || mode == NpcAnimationMode.NATIVE || rule == NpcActionOverrides.DENY || rule >= 0) { return false; }
-		return mode == NpcAnimationMode.FORCE || rule == NpcActionOverrides.ALLOW
+		int action = brother.getAnimation();
+		if (action < 0 || mode == NpcAnimationMode.NATIVE) { return false; }
+		return mode == NpcAnimationMode.FORCE
 			|| (preparedAction == action && AnimationRigCache.shared(evidence));
-	}
-
-	private int nativeAttack()
-	{
-		if (!nativeAttacks || brother.getAnimation() < 0) { return -1; }
-		int rule = overrides.rule(sourceId, brother.getAnimation());
-		if (rule >= 0) { return rule; } // Explicitly reviewed mappings can classify additional actions.
-		return NativeAttackMappings.brotherAttack(brother.getId(), brother.getAnimation()) ? NativeAttackMappings.attack(sourceId, sequences) : -1;
 	}
 
 	private void synchronize()
@@ -135,7 +119,6 @@ final class NativeNpcAnimation extends AnimationController
 		try
 		{
 			synchronize(); super.tick(ticks);
-			nativeActions.select(nativeAttack()); nativeActions.tick(ticks);
 		}
 		catch (RuntimeException ex) { fallback(ex); }
 	}
@@ -144,21 +127,12 @@ final class NativeNpcAnimation extends AnimationController
 	{
 		try
 		{
-			// Force preserves the old behaviour. Auto prefers a native attack where one is mapped.
-			if (mode == NpcAnimationMode.FORCE && borrow())
+			if (borrow())
 			{
 				Model action = borrowed(model);
 				if (action != model) { return action; }
 			}
 			synchronize();
-			nativeActions.select(nativeAttack());
-			Model nativeAction = nativeActions.animate(model, null);
-			if (nativeAction != model) { state = State.NATIVE_ATTACK; return nativeAction; }
-			if (mode == NpcAnimationMode.AUTO && borrow())
-			{
-				Model action = borrowed(model);
-				if (action != model) { return action; }
-			}
 			Animation animation = getAnimation();
 			invalidFrame = animation != null && (getFrame() < 0 || getFrame() >= animation.getNumFrames());
 			if (animation == null || invalidFrame) { state = State.STATIC; return model; }
@@ -184,7 +158,6 @@ final class NativeNpcAnimation extends AnimationController
 		String playback;
 		if (state == State.NOT_RENDERED) { playback = "Not rendered yet"; }
 		else if (state == State.BROTHER_ACTION) { playback = "Brother action #" + actionId + ", frame " + actionFrame; }
-		else if (state == State.NATIVE_ATTACK) { playback = nativeActions.summary(); }
 		else if (state == State.NATIVE && getAnimation() != null && selected >= 0 && !unsupported.contains(selected)) { playback = "Native sequence #" + selected + ", frame " + getFrame(); }
 		else if (sequences == null) { playback = "Static: waiting for NPC definition bytes"; }
 		else if (selected < 0) { playback = "Static: no matching native gait sequence"; }
@@ -194,10 +167,10 @@ final class NativeNpcAnimation extends AnimationController
 		else { playback = "Static: native sequence #" + selected + " returned no animated model"; }
 		return playback + "; mode=" + mode + "; " + (sequences == null ? "Metadata pending" : sequences.gaits() + "; " + sequences.note())
 			+ "\n  Compatibility: " + evidence + "; action=" + brother.getAnimation()
-			+ "\n  " + nativeActions.summary() + "; " + brotherActions.summary();
+			+ "\n  " + brotherActions.summary();
 	}
 
-	private enum State { NOT_RENDERED, BROTHER_ACTION, NATIVE_ATTACK, NATIVE, STATIC }
+	private enum State { NOT_RENDERED, BROTHER_ACTION, NATIVE, STATIC }
 	private void fallback(RuntimeException ex)
 	{
 		if (selected >= 0) { unsupported.add(selected); }
