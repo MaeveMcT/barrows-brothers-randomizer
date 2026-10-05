@@ -46,48 +46,43 @@ public class AnimationRigCacheTest
 	}
 	@Test public void matchingLayoutsAcrossDifferentSkeletonIdsArePositiveEvidenceAndCached()
 	{
-		assertTrue(cache.compare(100, 200).compatible());
-		assertTrue(cache.compare(100, 200).description.contains("model skin groups not verified"));
+		assertEquals(AnimationRigCache.Compatibility.COMPATIBLE, cache.compare(100, 200));
 		verify(frames).loadData(10, 0); verify(frames).loadData(20, 0);
 		verify(skeletons).loadData(7, 0); verify(skeletons).loadData(8, 0);
 		when(client.getTickCount()).thenReturn(1);
-		assertTrue(cache.compare(100, 200).compatible());
+		assertEquals(AnimationRigCache.Compatibility.COMPATIBLE, cache.compare(100, 200));
 		verify(configs).loadData(12, 100); verify(configs).loadData(12, 200);
 	}
 	@Test public void mismatchedLabelsDoNotBecomeCompatibleJustBecauseTransformsWouldNotThrow()
 	{
 		when(skeletons.loadData(8, 0)).thenReturn(new byte[] {1, 1, 1, 3});
-		AnimationRigCache.Evidence evidence = cache.compare(100, 200);
-		assertEquals(AnimationRigCache.Compatibility.INCOMPATIBLE, evidence.compatibility);
-		assertFalse(evidence.compatible());
+		assertEquals(AnimationRigCache.Compatibility.INCOMPATIBLE, cache.compare(100, 200));
 	}
 	@Test public void examinesEveryActionFrameNotJustTheFirst()
 	{
 		when(configs.loadData(12, 200)).thenReturn(sequence(20, 2));
 		when(frames.loadData(20, 1)).thenReturn(new byte[] {0, 9, 1, 1, 64});
 		when(skeletons.loadData(9, 0)).thenReturn(new byte[] {1, 2, 1, 0});
-		assertEquals(AnimationRigCache.Compatibility.INCOMPATIBLE, cache.compare(100, 200).compatibility);
+		assertEquals(AnimationRigCache.Compatibility.INCOMPATIBLE, cache.compare(100, 200));
 	}
 	@Test public void mayaAndWeightedSkeletonsRemainUnknown()
 	{
 		when(configs.loadData(12, 200)).thenReturn(new byte[] {13, 0, 0, 0, 1, 0});
-		assertEquals(AnimationRigCache.Compatibility.UNKNOWN, cache.compare(100, 200).compatibility);
-		assertTrue(cache.compare(100, 200).description.contains("Maya/weighted"));
+		assertEquals(AnimationRigCache.Compatibility.UNKNOWN, cache.compare(100, 200));
 		cache.clear(); when(configs.loadData(12, 200)).thenReturn(sequence(20, 1));
 		when(skeletons.loadData(8, 0)).thenReturn(new byte[] {1, 1, 1, 0, 0, 1});
-		assertEquals(AnimationRigCache.Compatibility.UNKNOWN, cache.compare(100, 200).compatibility);
-		assertTrue(cache.compare(100, 200).description.contains("weighted skeleton"));
+		assertEquals(AnimationRigCache.Compatibility.UNKNOWN, cache.compare(100, 200));
 	}
 	@Test public void missingAssetsRetryOncePerGameTickAndClearReleasesCaches()
 	{
 		when(frames.loadData(20, 0)).thenReturn(null);
-		assertEquals(AnimationRigCache.Compatibility.UNKNOWN, cache.compare(100, 200).compatibility);
+		assertEquals(AnimationRigCache.Compatibility.UNKNOWN, cache.compare(100, 200));
 		cache.compare(100, 200); verify(frames).loadData(20, 0);
 		when(client.getTickCount()).thenReturn(1);
 		when(frames.loadData(20, 0)).thenReturn(new byte[] {0, 8, 1, 1, 64});
-		assertTrue(cache.compare(100, 200).compatible());
+		assertEquals(AnimationRigCache.Compatibility.COMPATIBLE, cache.compare(100, 200));
 		verify(frames, times(2)).loadData(20, 0);
-		cache.clear(); assertTrue(cache.compare(100, 200).compatible());
+		cache.clear(); assertEquals(AnimationRigCache.Compatibility.COMPATIBLE, cache.compare(100, 200));
 		verify(configs, times(2)).loadData(12, 100);
 	}
 	@Test public void capsCacheReadsPerGameTickWhileEventuallyFinishingLongSequences()
@@ -96,37 +91,36 @@ public class AnimationRigCacheTest
 		when(configs.loadData(anyInt(), anyInt())).thenAnswer(i -> { reads.incrementAndGet(); return sequence(10, 40); });
 		when(frames.loadData(anyInt(), anyInt())).thenAnswer(i -> { reads.incrementAndGet(); return new byte[] {0, 7, 1, 1, 64}; });
 		when(skeletons.loadData(anyInt(), anyInt())).thenAnswer(i -> { reads.incrementAndGet(); return new byte[] {1, 1, 1, 0}; });
-		AnimationRigCache.Evidence evidence = null;
+		AnimationRigCache.Compatibility evidence = null;
 		for (int tick = 0; tick < 5; tick++)
 		{
 			when(client.getTickCount()).thenReturn(tick); reads.set(0);
 			evidence = cache.compare(100, 200); cache.compare(100, 200);
 			assertTrue("reads=" + reads, reads.get() <= 24);
 		}
-		assertNotNull(evidence);
-		assertTrue(evidence.compatible());
+		assertEquals(AnimationRigCache.Compatibility.COMPATIBLE, evidence);
 	}
 	@Test public void unknownTransformTypesAreNotClassifiedAsClassicCompatibility()
 	{
 		when(skeletons.loadData(8, 0)).thenReturn(new byte[] {2, 1, 6, 1, 1, 0, 0});
-		assertEquals(AnimationRigCache.Compatibility.UNKNOWN, cache.compare(100, 200).compatibility);
-		assertTrue(cache.compare(100, 200).description.contains("Unsupported skeleton transform type"));
+		assertEquals(AnimationRigCache.Compatibility.UNKNOWN, cache.compare(100, 200));
 	}
 	@Test public void malformedUnknownAndOldMetadataNeverGrantsCompatibility()
 	{
-		assertNotNull(AnimationRigCache.decode(new byte[] {1, 0, 4}).problem);
-		assertNotNull(AnimationRigCache.decode(new byte[] {(byte) 222, 0}).problem);
+		for (byte[] bytes : new byte[][] { {1, 0, 4}, {(byte) 222, 0} })
+		{
+			cache.clear(); when(configs.loadData(12, 200)).thenReturn(bytes);
+			assertEquals(AnimationRigCache.Compatibility.UNKNOWN, cache.compare(100, 200));
+		}
+		cache.clear(); when(configs.loadData(12, 200)).thenReturn(sequence(20, 1));
 		when(frames.loadData(20, 0)).thenReturn(new byte[] {0, 8, 1, 7});
-		assertEquals(AnimationRigCache.Compatibility.UNKNOWN, cache.compare(100, 200).compatibility);
-		assertTrue(cache.compare(100, 200).description.contains("Malformed"));
+		assertEquals(AnimationRigCache.Compatibility.UNKNOWN, cache.compare(100, 200));
 		cache.clear(); when(client.getRevision()).thenReturn(220);
-		assertEquals(AnimationRigCache.Compatibility.UNKNOWN, cache.compare(100, 200).compatibility);
-		assertTrue(cache.compare(100, 200).description.contains("schema/revision"));
+		assertEquals(AnimationRigCache.Compatibility.UNKNOWN, cache.compare(100, 200));
 	}
-	@Test public void diagnosticWordingCannotAuthorizeOrPreventBorrowing()
+	@Test public void missingNativeOrActionSequenceNeverGrantsCompatibility()
 	{
-		assertTrue(new AnimationRigCache.Evidence(AnimationRigCache.Compatibility.COMPATIBLE, "Different wording").compatible());
-		assertFalse(new AnimationRigCache.Evidence(AnimationRigCache.Compatibility.UNKNOWN, "Shared classic frame-map layout").compatible());
-		assertFalse(new AnimationRigCache.Evidence(AnimationRigCache.Compatibility.INCOMPATIBLE, "Shared classic frame-map layout").compatible());
+		assertEquals(AnimationRigCache.Compatibility.UNKNOWN, cache.compare(-1, 200));
+		assertEquals(AnimationRigCache.Compatibility.UNKNOWN, cache.compare(100, -1));
 	}
 }

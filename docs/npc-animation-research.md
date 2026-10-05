@@ -2,7 +2,7 @@
 
 ## Scope and runtime constraints
 
-**Barrows Brothers Randomizer** retains the NPC-disguise feature from the former Barrows Themes plugin. All scenery/texture features and diagnostic action recording have been removed. Production uses public live-client interfaces only: no reflection, disk-cache access, process execution, input injection or dynamic loading. Offline research tools live outside `src/`; no cache assets or keys are distributed.
+**Barrows Brothers Randomizer** retains the NPC-disguise feature from the former Barrows Themes plugin. All scenery/texture features, sidebar panels, diagnostic action recording, inspector summaries, diagnostic logging and offline audit tools have been removed. Production uses public live-client interfaces only: no reflection, disk-cache access, process execution, input injection or dynamic loading. No cache assets or keys are distributed.
 
 The random pool is every file ID in config archive **9**. Definitions include static rocks, invisible helpers, statue variants and model-less morphs, not just animated combat monsters. Neither NPC identity/name/size nor a successful transform proves visual suitability. The pool must remain unfiltered; failed choices retain the original without rerolling.
 
@@ -22,7 +22,7 @@ Inspected RuneLite cache revision `4d7df3fd871fea1331cb32ddc6e14f286de8f16d`:
 
 Production decodes native idle/walk/turn/run/crawl fields through `Client.getIndexConfig().loadData(9, id)`, because the live composition interface does not expose them. Unknown tags stop safely; malformed/truncated metadata, unavailable animation assets, invalid frames, failed transforms and definitions without a native gait retain static/native fallback. Current morph children supply their models and animation definitions.
 
-A private copied-cache audit compared all **15 movement fields** against RuneLite for **16,576 definitions**: zero mismatches/unsupported tags; **1,830** definitions lacked native movement metadata. Snapshot idx2 SHA-256: `8eea5056e4005bdf40483f6f0037f3da82c78a92f762f769165068c67a8e8cff`. This is not proof about every asset, later revisions or a particular static disguise. The user's `15343 → 15345` selection was Ghost Jenkins' ship/no-op variant with no gaits, not a demonstrated decoder bug.
+A historical private copied-cache audit compared all **15 movement fields** against RuneLite for **16,576 definitions**: zero mismatches/unsupported tags; **1,830** definitions lacked native movement metadata. Snapshot idx2 SHA-256: `8eea5056e4005bdf40483f6f0037f3da82c78a92f762f769165068c67a8e8cff`. This is not proof about every asset, later revisions or a particular static disguise. The user's `15343 → 15345` selection was Ghost Jenkins' ship/no-op variant with no gaits, not a demonstrated decoder bug.
 
 ## Animation policy
 
@@ -34,10 +34,10 @@ The disguise lifecycle receives explicit chance and animation-mode settings, and
 
 There are no explicit native attack mappings, brother-attack classifiers or custom action overrides. NPC definitions have no universal attack-animation field; unsupported brother actions leave native gait/static playback in place.
 
-Rig evidence compares every required classic frame's full transform-type/group-label layout against the selected native gait. Layouts can match across different skeleton IDs. Malformed, incomplete and Maya/weighted combinations are not automatically borrowed. Model skin labels/anatomy remain unverified even when layouts match. Playback consumes a typed compatible/incompatible/unknown classification; diagnostic wording never authorizes borrowing.
+Rig evidence compares every required classic frame's full transform-type/group-label layout against the selected native gait. Layouts can match across different skeleton IDs. Malformed, incomplete and Maya/weighted combinations are not automatically borrowed. Model skin labels/anatomy remain unverified even when layouts match. Playback consumes only a typed compatible/incompatible/unknown classification; no diagnostic text is generated or retained.
 
 NPC metadata, rig evidence and animation loading are prepared on client/game/animation ticks, never during rendering. Missing animation assets retry at most once per sequence per game tick, even when poses/actions change repeatedly. Rig metadata is bounded by caches and at most **24 metadata reads per game tick** across disguises. Native gait uses its own clock; borrowed actions use the real brother's action/frame. Evidence is tied to the current action, selected native gait and game tick; action-change notifications invalidate it immediately. If a pose/action changes before preparation, rendering uses a prepared native fallback or static pose without discovering assets. Option changes preserve selection, registration and gait clock.
 
 ## Remaining checks
 
-Verify the renamed plugin's six-brother scope, targeting, overhead alignment, movement/actions, cleanup and no-reroll option updates in-game. Test oversized/static/model-less choices without filtering or rerolling. Offline commands: [../tools/README.md](../tools/README.md).
+Verify the renamed plugin's six-brother scope, targeting, overhead alignment, movement/actions, cleanup and no-reroll option updates in-game. Test oversized/static/model-less choices without filtering or rerolling.

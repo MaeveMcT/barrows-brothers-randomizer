@@ -22,52 +22,29 @@ final class AnimationRigCache
 
 	AnimationRigCache(Client client) { this.client = client; }
 
-	Evidence compare(int nativeSequence, int action)
+	Compatibility compare(int nativeSequence, int action)
 	{
 		Sequence own = sequence(nativeSequence), borrowed = sequence(action);
-		if (!own.complete() || !borrowed.complete())
-		{
-			return new Evidence(Compatibility.UNKNOWN,
-				own.problem != null ? own.problem : borrowed.problem != null ? borrowed.problem : "Waiting for classic rig metadata");
-		}
-		if (!own.rigs.containsAll(borrowed.rigs))
-		{
-			return new Evidence(Compatibility.INCOMPATIBLE, "Different classic frame-map layouts");
-		}
-		return new Evidence(Compatibility.COMPATIBLE, "Shared classic frame-map layout (model skin groups not verified)");
+		if (!own.complete() || !borrowed.complete()) { return Compatibility.UNKNOWN; }
+		return own.rigs.containsAll(borrowed.rigs) ? Compatibility.COMPATIBLE : Compatibility.INCOMPATIBLE;
 	}
 
 	enum Compatibility { COMPATIBLE, INCOMPATIBLE, UNKNOWN }
 
-	/** Playback uses the classification, never the diagnostic wording. */
-	static final class Evidence
-	{
-		final Compatibility compatibility;
-		final String description;
-
-		Evidence(Compatibility compatibility, String description)
-		{
-			this.compatibility = compatibility;
-			this.description = description;
-		}
-
-		boolean compatible() { return compatibility == Compatibility.COMPATIBLE; }
-	}
-
 	private Sequence sequence(int id)
 	{
-		if (id < 0) { return Sequence.bad("No native sequence for rig comparison"); }
+		if (id < 0) { return Sequence.invalid(); }
 		Sequence entry = sequences.getIfPresent(id);
 		if (entry == null)
 		{
 			// Current schema only. Old revisions have different sound/Maya opcode payloads.
-			if (client.getRevision() < 226) { return Sequence.bad("Unsupported sequence schema/revision"); }
+			if (client.getRevision() < 226) { return Sequence.invalid(); }
 			byte[] bytes = load(2, 12, id); // CONFIGS / SEQUENCE
-			if (bytes == null) { return Sequence.bad("Waiting for sequence #" + id); }
+			if (bytes == null) { return Sequence.invalid(); }
 			entry = decode(bytes);
 			sequences.put(id, entry);
 		}
-		if (entry.problem != null || entry.complete() || entry.lastAttempt == client.getTickCount()) { return entry; }
+		if (entry.invalid || entry.complete() || entry.lastAttempt == client.getTickCount()) { return entry; }
 		entry.lastAttempt = client.getTickCount();
 		while (entry.next < entry.frames.length)
 		{
@@ -78,7 +55,7 @@ final class AnimationRigCache
 			{
 				byte[] bytes = load(0, frame >>> 16, frame & 65535); // ANIMATIONS
 				if (bytes == null) { break; }
-				if (bytes.length < 3) { entry.problem = "Malformed classic frame"; break; }
+				if (bytes.length < 3) { entry.invalid = true; break; }
 				int skeleton = (bytes[0] & 255) << 8 | bytes[1] & 255;
 				rig = skeletons.getIfPresent(skeleton);
 				if (rig == null)
@@ -88,10 +65,10 @@ final class AnimationRigCache
 					rig = Rig.decode(map);
 					skeletons.put(skeleton, rig);
 				}
-				if (rig.problem == null && !validFrame(bytes, rig.types.length)) { rig = Rig.bad("Malformed classic frame"); }
+				if (!rig.invalid && !validFrame(bytes, rig.types.length)) { rig = Rig.invalid(); }
 				frames.put(key, rig);
 			}
-			if (rig.problem != null) { entry.problem = rig.problem; break; }
+			if (rig.invalid) { entry.invalid = true; break; }
 			entry.rigs.add(rig);
 			entry.next++;
 		}
@@ -116,7 +93,7 @@ final class AnimationRigCache
 		catch (RuntimeException ex) { misses.put(key, now); return null; }
 	}
 
-	static Sequence decode(byte[] bytes)
+	private static Sequence decode(byte[] bytes)
 	{
 		ByteBuffer data = ByteBuffer.wrap(bytes);
 		int[] references = null;
@@ -127,10 +104,10 @@ final class AnimationRigCache
 				int opcode = u8(data);
 				switch (opcode)
 				{
-					case 0: return references == null || references.length == 0 ? Sequence.bad("No classic sequence frames") : new Sequence(references);
+					case 0: return references == null || references.length == 0 ? Sequence.invalid() : new Sequence(references);
 					case 1:
 						int count = u16(data);
-						if (count > 4096) { return Sequence.bad("Oversized sequence metadata"); }
+						if (count > 4096) { return Sequence.invalid(); }
 						skip(data, count * 2);
 						references = new int[count];
 						for (int i = 0; i < count; i++) { references[i] = u16(data); }
@@ -141,17 +118,17 @@ final class AnimationRigCache
 					case 4: case 19: break;
 					case 5: case 8: case 9: case 10: case 11: case 16: skip(data, 1); break;
 					case 12: skip(data, u8(data) * 4); break;
-					case 13: return Sequence.bad("Maya/weighted animation: automatic borrowing disabled");
+					case 13: return Sequence.invalid(); // Maya/weighted: no automatic borrowing.
 					case 14: skip(data, u16(data) * 8); break; // frame ushort + modern sound's six bytes
 					case 15: skip(data, 4); break;
 					case 17: skip(data, u8(data)); break;
-					case 18: while (data.get() != 0) { /* debug name */ } break;
-					default: return Sequence.bad("Unsupported sequence opcode " + opcode);
+					case 18: while (data.get() != 0) { /* Skip the sequence name. */ } break;
+					default: return Sequence.invalid();
 				}
 			}
 		}
-		catch (RuntimeException malformed) { return Sequence.bad("Malformed/truncated sequence metadata"); }
-		return Sequence.bad("Missing sequence terminator");
+		catch (RuntimeException malformed) { return Sequence.invalid(); }
+		return Sequence.invalid();
 	}
 
 	private static boolean validFrame(byte[] bytes, int transforms)
@@ -183,24 +160,24 @@ final class AnimationRigCache
 	}
 	void clear() { sequences.invalidateAll(); frames.invalidateAll(); skeletons.invalidateAll(); misses.invalidateAll(); tick = Integer.MIN_VALUE; }
 
-	static final class Sequence
+	private static final class Sequence
 	{
 		final int[] frames;
 		final Set<Rig> rigs = new HashSet<>();
-		String problem;
+		boolean invalid;
 		int next, lastAttempt = Integer.MIN_VALUE;
 		Sequence(int[] frames) { this.frames = frames; }
-		static Sequence bad(String problem) { Sequence s = new Sequence(new int[0]); s.problem = problem; return s; }
-		boolean complete() { return problem == null && next == frames.length && !rigs.isEmpty(); }
+		static Sequence invalid() { Sequence s = new Sequence(new int[0]); s.invalid = true; return s; }
+		boolean complete() { return !invalid && next == frames.length && !rigs.isEmpty(); }
 	}
 
 	private static final class Rig
 	{
 		final int[] types;
 		final int[][] labels;
-		final String problem;
-		Rig(int[] types, int[][] labels, String problem) { this.types = types; this.labels = labels; this.problem = problem; }
-		static Rig bad(String problem) { return new Rig(new int[0], new int[0][], problem); }
+		final boolean invalid;
+		Rig(int[] types, int[][] labels, boolean invalid) { this.types = types; this.labels = labels; this.invalid = invalid; }
+		static Rig invalid() { return new Rig(new int[0], new int[0][], true); }
 		static Rig decode(byte[] bytes)
 		{
 			try
@@ -211,13 +188,13 @@ final class AnimationRigCache
 				for (int i = 0; i < count; i++)
 				{
 					types[i] = u8(data);
-					if (types[i] > 3 && types[i] != 5) { return bad("Unsupported skeleton transform type"); }
+					if (types[i] > 3 && types[i] != 5) { return invalid(); }
 				}
 				int totalLabels = 0;
 				for (int i = 0; i < count; i++)
 				{
 					int length = u8(data); totalLabels += length;
-					if (totalLabels > 4096) { return bad("Oversized skeleton metadata"); }
+					if (totalLabels > 4096) { return invalid(); }
 					labels[i] = new int[length];
 				}
 				boolean geometry = false;
@@ -226,11 +203,11 @@ final class AnimationRigCache
 					for (int j = 0; j < labels[i].length; j++) { labels[i][j] = u8(data); }
 					geometry |= types[i] >= 1 && types[i] <= 3 && labels[i].length > 0;
 				}
-				if (data.hasRemaining() && (data.remaining() != 2 || u16(data) != 0)) { return bad("Extended/weighted skeleton: automatic borrowing disabled"); }
-				if (!geometry) { return bad("No geometric transforms in frame map"); }
-				return new Rig(types, labels, null);
+				if (data.hasRemaining() && (data.remaining() != 2 || u16(data) != 0)) { return invalid(); }
+				if (!geometry) { return invalid(); }
+				return new Rig(types, labels, false);
 			}
-			catch (RuntimeException malformed) { return bad("Malformed/truncated skeleton metadata"); }
+			catch (RuntimeException malformed) { return invalid(); }
 		}
 		@Override public int hashCode() { return 31 * Arrays.hashCode(types) + Arrays.deepHashCode(labels); }
 		@Override public boolean equals(Object other)

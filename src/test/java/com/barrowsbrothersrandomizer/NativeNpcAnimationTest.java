@@ -153,7 +153,6 @@ public class NativeNpcAnimationTest
 		controller.prepare();
 		assertSame(animated, object.getModel());
 		verify(client, never()).loadAnimation(999);
-		assertTrue(controller.summary().contains("matching idle/walk IDs (hint only)"));
 		when(client.getRevision()).thenReturn(240);
 		when(client.getTickCount()).thenReturn(1);
 		controller.prepare();
@@ -174,7 +173,6 @@ public class NativeNpcAnimationTest
 		NativeNpcAnimation controller = configured(NpcAnimationMode.AUTO);
 		assertSame(animated, render());
 		verify(client).applyTransformations(base, action, 0, null, 0);
-		assertTrue(controller.summary().contains("Shared classic frame-map layout"));
 		controller.options(NpcAnimationMode.NATIVE); controller.prepare();
 		clearInvocations(client);
 		assertSame(animated, object.getModel());
@@ -263,17 +261,17 @@ public class NativeNpcAnimationTest
 	}
 
 	@Test
-	public void diagnosticsDistinguishWaitingMetadataMissingGaitsAndUnsupportedTags()
+	public void missingMetadataAndUnsupportedTagsKeepTheModelStatic()
 	{
 		NativeNpcAnimation controller = configured(NpcAnimationMode.NATIVE);
 		when(configs.loadData(9, 77777)).thenReturn(null);
-		controller.prepare(); controller.animate(base, null);
-		assertTrue(controller.summary().contains("waiting for NPC definition bytes"));
+		controller.prepare();
+		assertSame(base, object.getModel());
 		when(client.getTickCount()).thenReturn(1);
 		when(configs.loadData(9, 77777)).thenReturn(new byte[] {(byte) 200, 13, 0, 100, 0});
-		controller.prepare(); controller.animate(base, null);
-		assertTrue(controller.summary().contains("no matching native gait sequence"));
-		assertTrue(controller.summary().contains("unsupported definition opcode 200"));
+		controller.prepare();
+		assertSame(base, object.getModel());
+		verify(client, never()).loadAnimation(anyInt());
 	}
 
 	@Test
@@ -353,7 +351,7 @@ public class NativeNpcAnimationTest
 		controller.prepare();
 		assertSame(animated, object.getModel());
 		verify(client).applyTransformations(base, walk, 0, null, 0);
-		assertTrue(controller.summary().contains("Different classic frame-map layouts"));
+		verify(client, never()).applyTransformations(eq(base), argThat(a -> a != null && a.getId() == 999), anyInt(), isNull(), eq(0));
 		when(brother.getPoseAnimation()).thenReturn(0);
 		assertSame(base, object.getModel());
 		controller.prepare(); clearInvocations(client);
@@ -438,11 +436,30 @@ public class NativeNpcAnimationTest
 		NativeNpcAnimations data = NativeNpcAnimations.decode(new byte[] {13, 0, 100,
 			115, 0, 106, 0, 107, 0, 108, 0, 109, 117, 0, 110, 0, 111, 0, 112, 0, 113, 0});
 		assertTrue(data.complete());
-		assertArrayEquals(new int[] {100, -1, -1, -1, -1, -1, -1, 106, 107, 108, 109, 110, 111, 112, 113}, data.movement());
+		assertEquals(100, data.sequenceFor(brother));
 		when(brother.getPoseAnimation()).thenReturn(10);
 		assertEquals(110, data.sequenceFor(brother));
-		when(brother.getWalkRotateLeft()).thenReturn(10);
+		when(brother.getWalkRotate180()).thenReturn(20);
+		when(brother.getPoseAnimation()).thenReturn(20);
+		assertEquals(111, data.sequenceFor(brother));
+		when(brother.getWalkRotateLeft()).thenReturn(30);
+		when(brother.getPoseAnimation()).thenReturn(30);
 		assertEquals(112, data.sequenceFor(brother));
+		when(brother.getWalkRotateRight()).thenReturn(40);
+		when(brother.getPoseAnimation()).thenReturn(40);
+		assertEquals(113, data.sequenceFor(brother));
+		when(brother.getRunAnimation()).thenReturn(50);
+		when(brother.getPoseAnimation()).thenReturn(50);
+		assertEquals(106, data.sequenceFor(brother));
+
+		NativeNpcAnimations runOnly = NativeNpcAnimations.decode(new byte[] {13, 0, 100,
+			115, 0, 106, 0, 107, 0, 108, 0, 109, 0});
+		when(brother.getPoseAnimation()).thenReturn(20);
+		assertEquals(107, runOnly.sequenceFor(brother));
+		when(brother.getPoseAnimation()).thenReturn(30);
+		assertEquals(108, runOnly.sequenceFor(brother));
+		when(brother.getPoseAnimation()).thenReturn(40);
+		assertEquals(109, runOnly.sequenceFor(brother));
 	}
 
 	@Test

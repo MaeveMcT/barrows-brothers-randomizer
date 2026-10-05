@@ -256,24 +256,12 @@ public class BrotherDisguisesTest
 		{
 			disguises.refresh(client, Collections.singletonList(brother), mode, defaults.chanceToRandomize());
 			disguises.refresh(client, Collections.singletonList(brother), mode, defaults.chanceToRandomize());
-			assertTrue(disguises.summary().contains("mode=" + mode));
+			assertTrue(disguises.hides(brother));
 		}
 		assertEquals(1, picks.get()); assertEquals(1, objects.size());
 		verify(objects.get(0)).setAnimationController(isA(NativeNpcAnimation.class));
 		verify(objects.get(0)).setActive(true); verify(objects.get(0), never()).setActive(false);
-		assertTrue(disguises.summary().contains("Models: [123]"));
-	}
-
-	@Test
-	public void inspectorSummaryReportsSelectedIdWithoutResolvingModels()
-	{
-		refresh();
-		String report = disguises.summary();
-		assertTrue(report.contains("Available NPC definitions: 2"));
-		assertTrue(report.contains("selected NPC #" + NpcID.CHICKEN));
-		assertTrue(report.contains("render objects, not new NPC actors"));
-		verify(brother, never()).getModel();
-		verify(objects.get(0), never()).getModel();
+		verify(client).getNpcDefinition(NpcID.CHICKEN);
 	}
 
 	@Test
@@ -285,7 +273,6 @@ public class BrotherDisguisesTest
 		assertFalse(disguises.hides(brother));
 		assertEquals(1, picks.get());
 		assertTrue(objects.isEmpty());
-		assertTrue(disguises.summary().contains("Resolved definition has no models"));
 	}
 
 	@Test

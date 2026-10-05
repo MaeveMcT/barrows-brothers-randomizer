@@ -11,7 +11,7 @@ A RuneLite **GPU** plugin that gives each Barrows brother a random NPC disguise 
 - Native idle, walk, run, crawl and turn sequences are used where available. Auto borrows brother actions only with classic rig evidence; otherwise native gait or a static pose continues during attacks. There is no explicit NPC attack-animation table.
 - Disguises clean up on despawn, scene transitions, logout and plugin shutdown.
 
-**Removed:** all wall/floor/scenery theming and model replacement, textures, the texture/inspection sidebar, and diagnostic action recording. Scenery is not read or edited by the randomization feature.
+**Removed:** all wall/floor/scenery theming and model replacement, textures, the texture/inspection sidebar, diagnostic action recording, inspector summaries, and diagnostic logging/audit tools. Scenery is not read or edited by the randomization feature.
 
 ## Animation settings
 

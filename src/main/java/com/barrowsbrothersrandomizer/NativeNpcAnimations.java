@@ -6,21 +6,10 @@ import net.runelite.api.NPC;
 /** Best-effort sequence metadata from config archive 9; no meshes or cache files are opened. */
 final class NativeNpcAnimations
 {
-	static final NativeNpcAnimations EMPTY = new NativeNpcAnimations("Malformed/truncated definition metadata");
-	private String note;
+	private static final NativeNpcAnimations EMPTY = new NativeNpcAnimations();
 	private boolean complete;
 	boolean complete() { return complete; }
-	int idle() { return idle; }
-	int walk() { return walk; }
-	String gaits() { return "idle=" + idle + ", walk=" + walk + ", run=" + run + ", crawl=" + crawl + ", turn=" + turnLeft + "/" + turnRight; }
-	int[] movement() { return new int[] {idle, walk, back, left, right, turnLeft, turnRight, run, runBack, runLeft, runRight, crawl, crawlBack, crawlLeft, crawlRight}; }
-	boolean sharesGaits(NPC brother)
-	{
-		return complete && idle >= 0 && walk >= 0 && idle == brother.getIdlePoseAnimation() && walk == brother.getWalkAnimation();
-	}
-	private NativeNpcAnimations() { this("Decoded movement metadata"); }
-	private NativeNpcAnimations(String note) { this.note = note; }
-	String note() { return note; }
+	private NativeNpcAnimations() { }
 	private int idle = -1, walk = -1, back = -1, left = -1, right = -1, turnLeft = -1, turnRight = -1, run = -1;
 	private int runBack = -1, runLeft = -1, runRight = -1, crawl = -1, crawlBack = -1, crawlLeft = -1, crawlRight = -1;
 
@@ -86,7 +75,6 @@ final class NativeNpcAnimations
 					case 253: skip(data, 15); string(data); break;
 					// Never scan unknown payload bytes as opcodes. Keep only the known prefix.
 					default:
-						result.note = "Stopped at unsupported definition opcode " + opcode + " at byte " + (data.position() - 1);
 						return result;
 				}
 			}

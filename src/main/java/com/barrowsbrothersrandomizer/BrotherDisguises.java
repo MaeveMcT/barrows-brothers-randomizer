@@ -8,7 +8,6 @@ import java.util.Set;
 import java.util.Collections;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.function.IntUnaryOperator;
-import lombok.extern.slf4j.Slf4j;
 import net.runelite.api.Client;
 import net.runelite.api.IndexDataBase;
 import net.runelite.api.Model;
@@ -19,7 +18,6 @@ import net.runelite.api.RuneLiteObject;
 import net.runelite.api.gameval.NpcID;
 
 /** Visual-only, per-spawn disguises. Never mutates NPC definitions or original models. */
-@Slf4j
 final class BrotherDisguises
 {
 	// NPC definitions are files in config archive 9 (RuneLite cache ConfigType.NPC).
@@ -56,7 +54,6 @@ final class BrotherDisguises
 			disguise.chanceRolled = true;
 			int percent = Math.max(0, Math.min(100, chance));
 			disguise.randomize = percent == 100 || (percent > 0 && random.applyAsInt(100) < percent);
-			if (!disguise.randomize) { disguise.failure = "Chance roll retained original"; }
 		}
 		if (!disguise.randomize || disguise.source >= 0) { return; }
 		if (npcIds == null)
@@ -108,17 +105,13 @@ final class BrotherDisguises
 				staged.setRadius(60);
 				place(staged, entry.getKey());
 				staged.setActive(true);
-				if (!staged.isActive()) { disguise.failure = "Render-object registration rejected"; staged.setActive(false); continue; }
+				if (!staged.isActive()) { staged.setActive(false); continue; }
 				disguise.object = staged;
-				disguise.definitionId = model.definitionId;
 				disguise.controller = controller;
-				disguise.failure = "";
 			}
 			catch (RuntimeException ex)
 			{
 				if (staged != null) { deactivate(staged); }
-				disguise.failure = "Model/registration failed: " + ex.getClass().getSimpleName();
-				log.debug("Unable to stage brother disguise; retaining original NPC", ex);
 			}
 		}
 	}
@@ -126,23 +119,21 @@ final class BrotherDisguises
 	private LoadedModel load(Client client, Disguise disguise)
 	{
 		NPCComposition definition = client.getNpcDefinition(disguise.source);
-		if (definition == null) { disguise.failure = "NPC definition unavailable"; return null; }
+		if (definition == null) { return null; }
 		int definitionId = disguise.source;
 		if (definition.getConfigs() != null)
 		{
 			definition = definition.transform();
-			if (definition == null) { disguise.failure = "Morph has no active child"; return null; }
+			if (definition == null) { return null; }
 			definitionId = definition.getId();
 		}
 		int[] ids = definition.getModels();
-		disguise.definitionId = definitionId;
-		if (ids == null || ids.length == 0) { disguise.failure = "Resolved definition has no models"; return null; }
-		disguise.models = ids.clone();
+		if (ids == null || ids.length == 0) { return null; }
 		ModelData[] parts = new ModelData[ids.length];
 		for (int i = 0; i < ids.length; i++)
 		{
 			parts[i] = client.loadModelData(ids[i]);
-			if (parts[i] == null) { disguise.failure = "Waiting for model #" + ids[i]; return null; }
+			if (parts[i] == null) { return null; }
 		}
 		ModelData data = (parts.length == 1 ? parts[0] : client.mergeModels(parts))
 			.shallowCopy().cloneVertices().cloneColors();
@@ -155,7 +146,7 @@ final class BrotherDisguises
 		data.scale(definition.getWidthScale(), definition.getHeightScale(), definition.getWidthScale());
 		data.translate(0, 0, 0); // Invalidate copied normals after scaling.
 		Model model = data.light();
-		if (model == null) { disguise.failure = "Lighting returned no model"; return null; }
+		if (model == null) { return null; }
 		return new LoadedModel(model, definitionId);
 	}
 
@@ -175,7 +166,6 @@ final class BrotherDisguises
 			catch (RuntimeException ex)
 			{
 				remove(disguise);
-				log.debug("Unable to move brother disguise; retaining original NPC", ex);
 			}
 		}
 	}
@@ -190,29 +180,6 @@ final class BrotherDisguises
 	{
 		Disguise disguise = disguises.get(npc);
 		return disguise != null && disguise.object != null && disguise.object.isActive();
-	}
-
-	String summary()
-	{
-		StringBuilder out = new StringBuilder("Available NPC definitions: ");
-		out.append(npcIds == null ? "awaiting archive metadata" : npcIds.length).append('\n');
-		if (disguises.isEmpty()) { return out.append("No eligible brothers currently tracked.\n").toString(); }
-		for (Map.Entry<NPC, Disguise> entry : disguises.entrySet())
-		{
-			Disguise disguise = entry.getValue();
-			out.append("Brother #").append(entry.getKey().getId()).append(" (index ").append(entry.getKey().getIndex())
-				.append(") -> selected NPC #").append(disguise.source);
-			if (disguise.object == null)
-			{
-				out.append("; resolved NPC #").append(disguise.definitionId).append("; no registered model: ")
-					.append(disguise.failure).append("; original retained\n");
-				continue;
-			}
-			out.append("; resolved NPC #").append(disguise.definitionId).append("; registered=").append(disguise.object.isActive()).append('\n');
-			out.append("  Models: ").append(java.util.Arrays.toString(disguise.models)).append('\n');
-			out.append("  ").append(disguise.controller.summary()).append('\n');
-		}
-		return out.append("Sequence/frame status does not prove visible movement. Disguises are render objects, not new NPC actors.\n").toString();
 	}
 
 	void despawn(NPC npc)
@@ -237,7 +204,7 @@ final class BrotherDisguises
 	private void deactivate(RuneLiteObject object)
 	{
 		try { object.setActive(false); }
-		catch (RuntimeException ex) { log.warn("Unable to remove brother disguise", ex); }
+		catch (RuntimeException ignored) { /* Continue cleanup of the remaining disguises. */ }
 	}
 
 	private static final class LoadedModel
@@ -252,9 +219,6 @@ final class BrotherDisguises
 		private boolean chanceRolled;
 		private boolean randomize;
 		private int source = -1;
-		private int definitionId = -1;
-		private int[] models;
-		private String failure = "Waiting for archive metadata";
 		private NativeNpcAnimation controller;
 		private RuneLiteObject object;
 	}
