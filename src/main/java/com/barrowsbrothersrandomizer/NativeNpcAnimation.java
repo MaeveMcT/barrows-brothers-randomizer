@@ -28,6 +28,7 @@ final class NativeNpcAnimation extends AnimationController
 	private int metadataAttempt = Integer.MIN_VALUE, animationAttempt = Integer.MIN_VALUE;
 	private int preparedTick = Integer.MIN_VALUE, preparedAction = -1;
 	private String evidence = "Compatibility not prepared";
+	private boolean compatible;
 	private int selected = -1;
 	private State state = State.NOT_RENDERED;
 	private boolean invalidFrame;
@@ -51,7 +52,7 @@ final class NativeNpcAnimation extends AnimationController
 		NpcAnimationMode next = mode == null ? NpcAnimationMode.NATIVE : mode;
 		if (this.mode == next) { return; }
 		this.mode = next;
-		preparedTick = Integer.MIN_VALUE; preparedAction = -1; evidence = "Compatibility not prepared";
+		preparedTick = Integer.MIN_VALUE; preparedAction = -1; compatible = false; evidence = "Compatibility not prepared";
 	}
 
 	void actionChanged() { preparedTick = Integer.MIN_VALUE; }
@@ -73,7 +74,7 @@ final class NativeNpcAnimation extends AnimationController
 	{
 		int action = brother.getAnimation(), tick = client.getTickCount();
 		if (action == preparedAction && tick == preparedTick) { return; }
-		preparedAction = action; preparedTick = tick;
+		preparedAction = action; preparedTick = tick; compatible = false;
 		try
 		{
 			metadata();
@@ -83,7 +84,9 @@ final class NativeNpcAnimation extends AnimationController
 			else if (sequences == null || !sequences.complete()) { evidence = "Incomplete NPC metadata; automatic borrowing disabled"; }
 			else
 			{
-				evidence = rigs.compare(sequences.sequenceFor(brother), action);
+				AnimationRigCache.Evidence result = rigs.compare(sequences.sequenceFor(brother), action);
+				compatible = result.compatible();
+				evidence = result.description;
 				if (sequences.sharesGaits(brother)) { evidence += "; matching idle/walk IDs (hint only)"; }
 			}
 		}
@@ -95,7 +98,7 @@ final class NativeNpcAnimation extends AnimationController
 		int action = brother.getAnimation();
 		if (action < 0 || mode == NpcAnimationMode.NATIVE) { return false; }
 		return mode == NpcAnimationMode.FORCE
-			|| (preparedAction == action && AnimationRigCache.shared(evidence));
+			|| (preparedAction == action && compatible);
 	}
 
 	private void synchronize()

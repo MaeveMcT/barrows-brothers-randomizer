@@ -32,7 +32,7 @@ A private copied-cache audit compared all **15 movement fields** against RuneLit
 
 There are no explicit native attack mappings, brother-attack classifiers or custom action overrides. NPC definitions have no universal attack-animation field; unsupported brother actions leave native gait/static playback in place.
 
-Rig evidence compares every required classic frame's full transform-type/group-label layout against the selected native gait. Layouts can match across different skeleton IDs. Malformed, incomplete and Maya/weighted combinations are not automatically borrowed. Model skin labels/anatomy remain unverified even when layouts match.
+Rig evidence compares every required classic frame's full transform-type/group-label layout against the selected native gait. Layouts can match across different skeleton IDs. Malformed, incomplete and Maya/weighted combinations are not automatically borrowed. Model skin labels/anatomy remain unverified even when layouts match. Playback consumes a typed compatible/incompatible/unknown classification; diagnostic wording never authorizes borrowing.
 
 Rig metadata is prepared outside rendering, bounded by caches and at most **24 metadata reads per game tick** across disguises. Native gait uses its own clock; borrowed actions use the real brother's action/frame. Action-change notifications invalidate prepared compatibility evidence. Option changes preserve selection, registration and gait clock.
 

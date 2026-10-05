@@ -22,14 +22,37 @@ final class AnimationRigCache
 
 	AnimationRigCache(Client client) { this.client = client; }
 
-	String compare(int nativeSequence, int action)
+	Evidence compare(int nativeSequence, int action)
 	{
 		Sequence own = sequence(nativeSequence), borrowed = sequence(action);
-		if (!own.complete() || !borrowed.complete()) { return own.problem != null ? own.problem : borrowed.problem != null ? borrowed.problem : "Waiting for classic rig metadata"; }
-		if (!own.rigs.containsAll(borrowed.rigs)) { return "Different classic frame-map layouts"; }
-		return "Shared classic frame-map layout (model skin groups not verified)";
+		if (!own.complete() || !borrowed.complete())
+		{
+			return new Evidence(Compatibility.UNKNOWN,
+				own.problem != null ? own.problem : borrowed.problem != null ? borrowed.problem : "Waiting for classic rig metadata");
+		}
+		if (!own.rigs.containsAll(borrowed.rigs))
+		{
+			return new Evidence(Compatibility.INCOMPATIBLE, "Different classic frame-map layouts");
+		}
+		return new Evidence(Compatibility.COMPATIBLE, "Shared classic frame-map layout (model skin groups not verified)");
 	}
-	static boolean shared(String evidence) { return evidence.startsWith("Shared classic frame-map layout"); }
+
+	enum Compatibility { COMPATIBLE, INCOMPATIBLE, UNKNOWN }
+
+	/** Playback uses the classification, never the diagnostic wording. */
+	static final class Evidence
+	{
+		final Compatibility compatibility;
+		final String description;
+
+		Evidence(Compatibility compatibility, String description)
+		{
+			this.compatibility = compatibility;
+			this.description = description;
+		}
+
+		boolean compatible() { return compatibility == Compatibility.COMPATIBLE; }
+	}
 
 	private Sequence sequence(int id)
 	{
