@@ -19,6 +19,7 @@ public class NativeNpcAnimationTest
 	private Model base, animated;
 	private Animation idle, walk;
 	private RuneLiteObject object;
+	private final BarrowsBrothersRandomizerConfig defaults = new BarrowsBrothersRandomizerConfig() { };
 
 	@Before
 	public void setup()
@@ -38,7 +39,7 @@ public class NativeNpcAnimationTest
 		when(client.applyTransformations(eq(base), any(Animation.class), anyInt(), isNull(), eq(0))).thenReturn(animated);
 		object = new RuneLiteObject(client);
 		object.setModel(base);
-		object.setAnimationController(new NativeNpcAnimation(client, brother, 77777));
+		configured(defaults.npcAnimationMode());
 	}
 
 	private Animation animation(int id)
@@ -61,8 +62,7 @@ public class NativeNpcAnimationTest
 
 	private NativeNpcAnimation configured(NpcAnimationMode mode)
 	{
-		NativeNpcAnimation controller = new NativeNpcAnimation(client, brother, 77777, new AnimationRigCache(client));
-		controller.options(mode);
+		NativeNpcAnimation controller = new NativeNpcAnimation(client, brother, 77777, new AnimationRigCache(client), mode);
 		object.setAnimationController(controller);
 		return controller;
 	}
@@ -100,14 +100,14 @@ public class NativeNpcAnimationTest
 	}
 
 	@Test
-	public void optionalBrotherActionsUseRealActionFramesThenResumeNativeIdle()
+	public void forcedBrotherActionsUseRealActionFramesThenResumeNativeIdle()
 	{
 		Animation action = animation(999);
 		Model actionModel = mock(Model.class);
 		when(client.loadAnimation(999)).thenReturn(action);
 		when(brother.getAnimationFrame()).thenReturn(2);
 		when(client.applyTransformations(base, action, 2, null, 0)).thenReturn(actionModel);
-		object.setAnimationController(new NativeNpcAnimation(client, brother, 77777, true));
+		configured(NpcAnimationMode.FORCE);
 		assertSame(actionModel, render());
 		when(brother.getAnimationFrame()).thenReturn(0);
 		when(client.applyTransformations(base, action, 0, null, 0)).thenReturn(actionModel);
@@ -125,7 +125,7 @@ public class NativeNpcAnimationTest
 		Animation action = animation(999);
 		when(client.loadAnimation(999)).thenReturn(action);
 		when(client.applyTransformations(base, action, 0, null, 0)).thenThrow(new IllegalArgumentException("rig"));
-		object.setAnimationController(new NativeNpcAnimation(client, brother, 77777, true));
+		configured(NpcAnimationMode.FORCE);
 		assertSame(animated, render()); assertSame(animated, render());
 		verify(client).applyTransformations(base, action, 0, null, 0);
 	}
@@ -133,7 +133,7 @@ public class NativeNpcAnimationTest
 	@Test
 	public void unavailableBrotherActionsRetryOncePerTickAndKeepNativeGait()
 	{
-		object.setAnimationController(new NativeNpcAnimation(client, brother, 77777, true));
+		configured(NpcAnimationMode.FORCE);
 		assertSame(animated, render()); assertSame(animated, render());
 		verify(client).loadAnimation(999);
 		when(client.getTickCount()).thenReturn(1);
@@ -205,8 +205,8 @@ public class NativeNpcAnimationTest
 		when(brother.getAnimation()).thenReturn(net.runelite.api.gameval.AnimationID.BARROWS_REPEATING_CROSSBOW_FIRE);
 		int cow = net.runelite.api.gameval.NpcID.COW;
 		when(configs.loadData(9, cow)).thenReturn(new byte[] {13, 0, 100, 14, 0, 101, 0});
-		NativeNpcAnimation controller = new NativeNpcAnimation(client, brother, cow, new AnimationRigCache(client));
-		controller.options(NpcAnimationMode.AUTO); controller.prepare(); object.setAnimationController(controller);
+		NativeNpcAnimation controller = new NativeNpcAnimation(client, brother, cow, new AnimationRigCache(client), NpcAnimationMode.AUTO);
+		controller.prepare(); object.setAnimationController(controller);
 		assertSame(animated, object.getModel());
 		verify(client).applyTransformations(base, idle, 0, null, 0);
 		verify(client, never()).loadAnimation(net.runelite.api.gameval.AnimationID.COW_UPDATE_ATTACK);
@@ -265,7 +265,7 @@ public class NativeNpcAnimationTest
 	@Test
 	public void diagnosticsDistinguishWaitingMetadataMissingGaitsAndUnsupportedTags()
 	{
-		NativeNpcAnimation controller = new NativeNpcAnimation(client, brother, 77777);
+		NativeNpcAnimation controller = configured(NpcAnimationMode.NATIVE);
 		when(configs.loadData(9, 77777)).thenReturn(null);
 		controller.prepare(); controller.animate(base, null);
 		assertTrue(controller.summary().contains("waiting for NPC definition bytes"));

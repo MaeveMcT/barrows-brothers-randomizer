@@ -24,6 +24,7 @@ public class BrotherDisguisesTest
 	private Client client;
 	private NPC brother;
 	private BrotherDisguises disguises;
+	private final BarrowsBrothersRandomizerConfig defaults = new BarrowsBrothersRandomizerConfig() { };
 	private final AtomicInteger picks = new AtomicInteger();
 	private final List<RuneLiteObject> objects = new ArrayList<>();
 	private ModelData original;
@@ -66,11 +67,11 @@ public class BrotherDisguisesTest
 		});
 	}
 
-	private void refresh() { disguises.refresh(client, Collections.singletonList(brother)); }
+	private void refresh() { refreshWithChance(defaults.chanceToRandomize()); }
 
 	private void refreshWithChance(int chance)
 	{
-		disguises.refresh(client, Collections.singletonList(brother), NpcAnimationMode.NATIVE, chance);
+		disguises.refresh(client, Collections.singletonList(brother), defaults.npcAnimationMode(), chance);
 	}
 
 	@Test
@@ -130,7 +131,7 @@ public class BrotherDisguisesTest
 	@Test
 	public void picksOnceAndDoesNotRespawnReadyDisguises()
 	{
-		disguises.spawn(client, brother);
+		disguises.spawn(client, brother, defaults.chanceToRandomize());
 		refresh(); refresh();
 		assertEquals(1, picks.get());
 		assertEquals(1, objects.size());
@@ -208,7 +209,7 @@ public class BrotherDisguisesTest
 	public void reconciliationAndClearRemoveDisguises()
 	{
 		refresh();
-		disguises.refresh(client, Collections.emptyList());
+		disguises.refresh(client, Collections.emptyList(), defaults.npcAnimationMode(), defaults.chanceToRandomize());
 		assertFalse(disguises.hides(brother));
 		verify(objects.get(0)).setActive(false);
 		refresh();
@@ -249,25 +250,12 @@ public class BrotherDisguisesTest
 	}
 
 	@Test
-	public void changingBrotherAttackOptionDoesNotRerollOrRespawnTheDisguise()
-	{
-		refresh();
-		disguises.refresh(client, Collections.singletonList(brother), true);
-		disguises.refresh(client, Collections.singletonList(brother), true);
-		disguises.refresh(client, Collections.singletonList(brother), false);
-		assertEquals(1, picks.get());
-		assertEquals(1, objects.size());
-		verify(objects.get(0)).setAnimationController(isA(NativeNpcAnimation.class)); // Settings update the existing controller/clock.
-		verify(objects.get(0)).setActive(true);
-		verify(objects.get(0), never()).setActive(false);
-	}
-
-	@Test
 	public void allModesPreserveSelectionAndRegistration()
 	{
 		for (NpcAnimationMode mode : NpcAnimationMode.values())
 		{
-			disguises.refresh(client, Collections.singletonList(brother), mode);
+			disguises.refresh(client, Collections.singletonList(brother), mode, defaults.chanceToRandomize());
+			disguises.refresh(client, Collections.singletonList(brother), mode, defaults.chanceToRandomize());
 			assertTrue(disguises.summary().contains("mode=" + mode));
 		}
 		assertEquals(1, picks.get()); assertEquals(1, objects.size());
@@ -323,7 +311,7 @@ public class BrotherDisguisesTest
 		WorldView view = brother.getWorldView();
 		when(second.getLocalLocation()).thenReturn(location);
 		when(second.getWorldView()).thenReturn(view);
-		disguises.refresh(client, java.util.Arrays.asList(brother, second));
+		disguises.refresh(client, java.util.Arrays.asList(brother, second), defaults.npcAnimationMode(), defaults.chanceToRandomize());
 		doThrow(new IllegalStateException("cleanup")).when(objects.get(0)).setActive(false);
 		disguises.clear();
 		verify(objects.get(1)).setActive(false);

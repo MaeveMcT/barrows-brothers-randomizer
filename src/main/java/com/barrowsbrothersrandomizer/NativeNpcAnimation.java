@@ -1,5 +1,6 @@
 package com.barrowsbrothersrandomizer;
 
+import com.google.common.base.Preconditions;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
@@ -25,7 +26,7 @@ final class NativeNpcAnimation extends AnimationController
 	private final Set<Integer> unsupported = new HashSet<>();
 	private final Set<Integer> attempted = new HashSet<>();
 	private NativeNpcAnimations sequences;
-	private NpcAnimationMode mode = NpcAnimationMode.NATIVE;
+	private NpcAnimationMode mode;
 	private int metadataAttempt = Integer.MIN_VALUE, attemptTick = Integer.MIN_VALUE;
 	private int preparedTick = Integer.MIN_VALUE, preparedAction = -1, preparedSequence = -1;
 	private String evidence = "Compatibility not prepared";
@@ -35,24 +36,19 @@ final class NativeNpcAnimation extends AnimationController
 	private boolean invalidFrame;
 	private int actionId, actionFrame;
 
-	NativeNpcAnimation(Client client, NPC brother, int sourceId) { this(client, brother, sourceId, false); }
-	NativeNpcAnimation(Client client, NPC brother, int sourceId, boolean useBrotherActions)
-	{
-		this(client, brother, sourceId, new AnimationRigCache(client));
-		mode = useBrotherActions ? NpcAnimationMode.FORCE : NpcAnimationMode.NATIVE;
-	}
-	NativeNpcAnimation(Client client, NPC brother, int sourceId, AnimationRigCache rigs)
+	NativeNpcAnimation(Client client, NPC brother, int sourceId, AnimationRigCache rigs, NpcAnimationMode mode)
 	{
 		super(client, (Animation) null);
 		this.client = client; this.brother = brother; this.sourceId = sourceId; this.rigs = rigs;
 		brotherActions = new BrotherActionAnimation(client, brother);
+		options(mode);
 	}
 
 	void options(NpcAnimationMode mode)
 	{
-		NpcAnimationMode next = mode == null ? NpcAnimationMode.NATIVE : mode;
-		if (this.mode == next) { return; }
-		this.mode = next;
+		Preconditions.checkNotNull(mode, "Animation mode");
+		if (this.mode == mode) { return; }
+		this.mode = mode;
 		preparedTick = Integer.MIN_VALUE; preparedAction = -1; compatible = false; evidence = "Compatibility not prepared";
 	}
 

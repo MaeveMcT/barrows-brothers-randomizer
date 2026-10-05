@@ -30,6 +30,8 @@ A private copied-cache audit compared all **15 movement fields** against RuneLit
 - **Native only:** native gait only, never borrowed brother actions.
 - **Force:** explicitly tries brother actions before native fallback.
 
+The disguise lifecycle receives explicit chance and animation-mode settings, and controllers require an explicit mode and shared rig cache. Configuration owns the defaults; tests follow this same path rather than historical boolean/default overloads.
+
 There are no explicit native attack mappings, brother-attack classifiers or custom action overrides. NPC definitions have no universal attack-animation field; unsupported brother actions leave native gait/static playback in place.
 
 Rig evidence compares every required classic frame's full transform-type/group-label layout against the selected native gait. Layouts can match across different skeleton IDs. Malformed, incomplete and Maya/weighted combinations are not automatically borrowed. Model skin labels/anatomy remain unverified even when layouts match. Playback consumes a typed compatible/incompatible/unknown classification; diagnostic wording never authorizes borrowing.

@@ -47,8 +47,6 @@ final class BrotherDisguises
 		}
 	}
 
-	void spawn(Client client, NPC npc) { spawn(client, npc, 100); }
-
 	void spawn(Client client, NPC npc, int chance)
 	{
 		if (!isBrother(npc.getId())) { return; }
@@ -73,18 +71,6 @@ final class BrotherDisguises
 	}
 
 	/** Also discovers brothers already present when the plugin is enabled. */
-	void refresh(Client client, List<NPC> eligible) { refresh(client, eligible, false); }
-
-	void refresh(Client client, List<NPC> eligible, boolean useBrotherActions)
-	{
-		refresh(client, eligible, useBrotherActions ? NpcAnimationMode.FORCE : NpcAnimationMode.NATIVE);
-	}
-
-	void refresh(Client client, List<NPC> eligible, NpcAnimationMode mode)
-	{
-		refresh(client, eligible, mode, 100);
-	}
-
 	void refresh(Client client, List<NPC> eligible, NpcAnimationMode mode, int chance)
 	{
 		if (rigs == null) { rigs = new AnimationRigCache(client); }
@@ -116,8 +102,7 @@ final class BrotherDisguises
 				if (model == null) { continue; } // Retry this same choice, never reroll on cache misses.
 				staged = client.createRuneLiteObject();
 				staged.setModel(model.model);
-				NativeNpcAnimation controller = new NativeNpcAnimation(client, entry.getKey(), model.definitionId, rigs);
-				controller.options(mode);
+				NativeNpcAnimation controller = new NativeNpcAnimation(client, entry.getKey(), model.definitionId, rigs, mode);
 				controller.prepare();
 				staged.setAnimationController(controller);
 				staged.setRadius(60);
