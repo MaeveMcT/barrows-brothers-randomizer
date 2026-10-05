@@ -68,6 +68,55 @@ public class BrotherDisguisesTest
 
 	private void refresh() { disguises.refresh(client, Collections.singletonList(brother)); }
 
+	private void refreshWithChance(int chance)
+	{
+		disguises.refresh(client, Collections.singletonList(brother), NpcAnimationMode.NATIVE, false, "", chance);
+	}
+
+	@Test
+	public void chanceThresholdIsExclusiveAndSkippedSpawnsNeverReroll()
+	{
+		disguises = new BrotherDisguises(bound -> { picks.incrementAndGet(); return bound == 100 ? 50 : 0; });
+		refreshWithChance(50);
+		refreshWithChance(100);
+		assertEquals(1, picks.get());
+		assertFalse(disguises.hides(brother));
+		verify(client, never()).getIndexConfig();
+		disguises.despawn(brother);
+		refreshWithChance(51);
+		assertEquals(3, picks.get());
+		assertTrue(disguises.hides(brother));
+		refreshWithChance(0);
+		assertTrue(disguises.hides(brother));
+		assertEquals(3, picks.get());
+	}
+
+	@Test
+	public void zeroChanceDoesNotSampleOrLoadAndClearAllowsNewRoll()
+	{
+		refreshWithChance(0); refreshWithChance(0);
+		assertEquals(0, picks.get());
+		assertFalse(disguises.hides(brother));
+		verify(client, never()).getIndexConfig();
+		disguises.clear();
+		refreshWithChance(100);
+		assertEquals(1, picks.get());
+		assertTrue(disguises.hides(brother));
+	}
+
+	@Test
+	public void chanceRollSurvivesUnavailableArchiveMetadata()
+	{
+		disguises = new BrotherDisguises(bound -> { picks.incrementAndGet(); return 0; });
+		when(client.getIndexConfig().getFileIds(9)).thenReturn(null);
+		refreshWithChance(50); refreshWithChance(0);
+		assertEquals(1, picks.get());
+		when(client.getIndexConfig().getFileIds(9)).thenReturn(new int[] {NpcID.CHICKEN});
+		refreshWithChance(0);
+		assertEquals(2, picks.get());
+		assertTrue(disguises.hides(brother));
+	}
+
 	@Test
 	public void restrictsSelectionToTheSixActualBrothers()
 	{

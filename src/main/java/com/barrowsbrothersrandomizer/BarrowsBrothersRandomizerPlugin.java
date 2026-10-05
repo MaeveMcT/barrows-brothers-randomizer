@@ -113,7 +113,7 @@ public class BarrowsBrothersRandomizerPlugin extends Plugin
 	{
 		if (BarrowsBrothersRandomizerConfig.GROUP.equals(event.getGroup()))
 		{
-			// Animation options change in place: do not reroll or rebuild ready disguises.
+			// Preserve per-spawn chance rolls and selections; update animation options in place.
 			clientThread.invokeLater(() -> { if (active) { refreshDisguises(); } });
 		}
 	}
@@ -147,7 +147,7 @@ public class BarrowsBrothersRandomizerPlugin extends Plugin
 	{
 		if (active && client.getGameState() == GameState.LOGGED_IN && eligibleBrother(event.getNpc()))
 		{
-			disguises.spawn(client, event.getNpc());
+			disguises.spawn(client, event.getNpc(), config.chanceToRandomize());
 		}
 	}
 
@@ -171,6 +171,6 @@ public class BarrowsBrothersRandomizerPlugin extends Plugin
 		}
 		List<NPC> eligible = new ArrayList<>();
 		for (NPC npc : client.getNpcs()) { if (eligibleBrother(npc)) { eligible.add(npc); } }
-		disguises.refresh(client, eligible, config.npcAnimationMode(), config.nativeNpcAttacks(), config.npcActionOverrides());
+		disguises.refresh(client, eligible, config.npcAnimationMode(), config.nativeNpcAttacks(), config.npcActionOverrides(), config.chanceToRandomize());
 	}
 }

@@ -64,6 +64,7 @@ public class BarrowsBrothersRandomizerPluginTest
 		when(brother.getLocalLocation()).thenReturn(new LocalPoint(64,64));
 		when(brother.getWorldView()).thenReturn(view);
 		when(client.getNpcs()).thenReturn(Collections.singletonList(brother));
+		when(config.chanceToRandomize()).thenReturn(100);
 		when(config.npcAnimationMode()).thenReturn(NpcAnimationMode.NATIVE);
 		when(config.nativeNpcAttacks()).thenReturn(true); when(config.npcActionOverrides()).thenReturn("");
 		fixture = new RuneFixture();
@@ -153,6 +154,21 @@ public class BarrowsBrothersRandomizerPluginTest
 		when(scene.getBaseX()).thenReturn(3550); when(scene.getBaseY()).thenReturn(9690);
 		when(brother.getId()).thenReturn(42);
 		plugin.onGameTick(new GameTick()); verify(client, never()).createRuneLiteObject();
+	}
+
+	@Test
+	public void zeroChanceRetainsOriginalAndConfigChangesDoNotReroll()
+	{
+		when(config.chanceToRandomize()).thenReturn(0);
+		start();
+		when(config.chanceToRandomize()).thenReturn(100);
+		ConfigChanged event = new ConfigChanged(); event.setGroup(BarrowsBrothersRandomizerConfig.GROUP);
+		plugin.onConfigChanged(event); plugin.onGameTick(new GameTick());
+		verify(client, never()).createRuneLiteObject();
+		plugin.onNpcDespawned(new NpcDespawned(brother));
+		plugin.onNpcSpawned(new net.runelite.api.events.NpcSpawned(brother));
+		plugin.onGameTick(new GameTick());
+		verify(client).createRuneLiteObject();
 	}
 
 	@Test

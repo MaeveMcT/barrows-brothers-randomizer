@@ -49,11 +49,20 @@ final class BrotherDisguises
 		}
 	}
 
-	void spawn(Client client, NPC npc)
+	void spawn(Client client, NPC npc) { spawn(client, npc, 100); }
+
+	void spawn(Client client, NPC npc, int chance)
 	{
 		if (!isBrother(npc.getId())) { return; }
 		Disguise disguise = disguises.computeIfAbsent(npc, ignored -> new Disguise());
-		if (disguise.source >= 0) { return; }
+		if (!disguise.chanceRolled)
+		{
+			disguise.chanceRolled = true;
+			int percent = Math.max(0, Math.min(100, chance));
+			disguise.randomize = percent == 100 || (percent > 0 && random.applyAsInt(100) < percent);
+			if (!disguise.randomize) { disguise.failure = "Chance roll retained original"; }
+		}
+		if (!disguise.randomize || disguise.source >= 0) { return; }
 		if (npcIds == null)
 		{
 			IndexDataBase configs = client.getIndexConfig();
@@ -75,12 +84,17 @@ final class BrotherDisguises
 
 	void refresh(Client client, List<NPC> eligible, NpcAnimationMode mode, boolean nativeAttacks, String rules)
 	{
+		refresh(client, eligible, mode, nativeAttacks, rules, 100);
+	}
+
+	void refresh(Client client, List<NPC> eligible, NpcAnimationMode mode, boolean nativeAttacks, String rules, int chance)
+	{
 		if (rigs == null) { rigs = new AnimationRigCache(client); }
 		String text = rules == null ? "" : rules;
 		if (!text.equals(overrideText)) { overrideText = text; overrides = new NpcActionOverrides(text); }
 		Set<NPC> present = Collections.newSetFromMap(new IdentityHashMap<>());
 		present.addAll(eligible);
-		for (NPC npc : eligible) { spawn(client, npc); }
+		for (NPC npc : eligible) { spawn(client, npc, chance); }
 		Iterator<Map.Entry<NPC, Disguise>> iterator = disguises.entrySet().iterator();
 		while (iterator.hasNext())
 		{
@@ -255,6 +269,8 @@ final class BrotherDisguises
 
 	private static final class Disguise
 	{
+		private boolean chanceRolled;
+		private boolean randomize;
 		private int source = -1;
 		private int definitionId = -1;
 		private int[] models;
