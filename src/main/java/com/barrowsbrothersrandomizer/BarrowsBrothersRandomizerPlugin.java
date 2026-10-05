@@ -76,8 +76,10 @@ public class BarrowsBrothersRandomizerPlugin extends Plugin
 	{
 		if (manager == null) { return; }
 		String group = BarrowsBrothersRandomizerConfig.GROUP;
+		manager.unsetConfiguration(group, "nativeNpcAttacks");
+		manager.unsetConfiguration(group, "npcActionOverrides");
 		if (Boolean.parseBoolean(manager.getConfiguration(group, "migratedLegacyNpcSettings"))) { return; }
-		String[] keys = {"npcAnimationMode", "nativeNpcAttacks", "npcActionOverrides"};
+		String[] keys = {"npcAnimationMode"};
 		String sourceGroup = LEGACY_GROUP;
 		if (Boolean.parseBoolean(manager.getConfiguration(INTERIM_GROUP, "migratedLegacyNpcSettings"))) { sourceGroup = INTERIM_GROUP; }
 		for (String key : keys)
@@ -171,6 +173,6 @@ public class BarrowsBrothersRandomizerPlugin extends Plugin
 		}
 		List<NPC> eligible = new ArrayList<>();
 		for (NPC npc : client.getNpcs()) { if (eligibleBrother(npc)) { eligible.add(npc); } }
-		disguises.refresh(client, eligible, config.npcAnimationMode(), config.nativeNpcAttacks(), config.npcActionOverrides(), config.chanceToRandomize());
+		disguises.refresh(client, eligible, config.npcAnimationMode(), true, "", config.chanceToRandomize());
 	}
 }

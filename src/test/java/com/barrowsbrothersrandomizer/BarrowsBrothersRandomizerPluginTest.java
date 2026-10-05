@@ -66,7 +66,6 @@ public class BarrowsBrothersRandomizerPluginTest
 		when(client.getNpcs()).thenReturn(Collections.singletonList(brother));
 		when(config.chanceToRandomize()).thenReturn(100);
 		when(config.npcAnimationMode()).thenReturn(NpcAnimationMode.NATIVE);
-		when(config.nativeNpcAttacks()).thenReturn(true); when(config.npcActionOverrides()).thenReturn("");
 		fixture = new RuneFixture();
 		when(client.getIndexConfig()).thenReturn(fixture.index);
 		when(fixture.index.getFileIds(9)).thenReturn(new int[] {99999});

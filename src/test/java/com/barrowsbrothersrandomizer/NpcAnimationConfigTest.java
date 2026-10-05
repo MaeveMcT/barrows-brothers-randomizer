@@ -38,8 +38,8 @@ public class NpcAnimationConfigTest
 		BarrowsBrothersRandomizerPlugin.migrateConfig(manager(values));
 		String group = BarrowsBrothersRandomizerConfig.GROUP + ".";
 		assertEquals("AUTO", values.get(group + "npcAnimationMode"));
-		assertEquals("false", values.get(group + "nativeNpcAttacks"));
-		assertEquals("1173:2075=5387", values.get(group + "npcActionOverrides"));
+		assertFalse(values.containsKey(group + "nativeNpcAttacks"));
+		assertFalse(values.containsKey(group + "npcActionOverrides"));
 		assertFalse(values.containsKey(group + "theme"));
 		assertFalse(values.containsKey(group + "randomBrothers"));
 		assertFalse(values.containsKey("barrowsthemes.recordNpcActions"));
@@ -97,11 +97,28 @@ public class NpcAnimationConfigTest
 	}
 
 	@Test
-	public void defaultsKeepBorrowingOffAndMappedNativeAttacksOn()
+	public void defaultsUseAutoAndExposeOnlyChanceAndAnimationMode()
 	{
 		BarrowsBrothersRandomizerConfig config = new BarrowsBrothersRandomizerConfig() { };
-		assertEquals(NpcAnimationMode.NATIVE, config.npcAnimationMode());
-		assertTrue(config.nativeNpcAttacks()); assertEquals("", config.npcActionOverrides());
+		assertEquals(NpcAnimationMode.AUTO, config.npcAnimationMode());
+		assertEquals(100, config.chanceToRandomize());
+		assertEquals(2, java.util.Arrays.stream(BarrowsBrothersRandomizerConfig.class.getDeclaredMethods())
+			.filter(method -> method.isAnnotationPresent(net.runelite.client.config.ConfigItem.class)).count());
 		BarrowsBrothersRandomizerPlugin.migrateConfig(null);
+	}
+
+	@Test
+	public void removesRetiredSettingsEvenWhenMigrationAlreadyRan()
+	{
+		Map<String, String> values = new HashMap<>();
+		String group = BarrowsBrothersRandomizerConfig.GROUP + ".";
+		values.put(group + "migratedLegacyNpcSettings", "true");
+		values.put(group + "npcAnimationMode", "NATIVE");
+		values.put(group + "nativeNpcAttacks", "false");
+		values.put(group + "npcActionOverrides", "1173:2075=deny");
+		BarrowsBrothersRandomizerPlugin.migrateConfig(manager(values));
+		assertEquals("NATIVE", values.get(group + "npcAnimationMode"));
+		assertFalse(values.containsKey(group + "nativeNpcAttacks"));
+		assertFalse(values.containsKey(group + "npcActionOverrides"));
 	}
 }

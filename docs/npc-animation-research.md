@@ -26,9 +26,11 @@ A private copied-cache audit compared all **15 movement fields** against RuneLit
 
 ## Animation policy
 
+- **Auto** (default): native attacks first; otherwise requires full classic frame-map evidence. Shared gait IDs alone are only a hint.
 - **Native only:** native gait and mapped native attacks, never borrowed brother actions.
-- **Auto:** native attacks first; otherwise requires full classic frame-map evidence or a reviewed allow. Shared gait IDs alone are only a hint.
-- **Force:** explicitly tries brother actions before native fallback. Deny rules still apply.
+- **Force:** explicitly tries brother actions before native fallback.
+
+Native attack mappings are always enabled. Custom action overrides and the mapped-native-attack toggle are no longer exposed or used by the plugin.
 
 Rig evidence compares every required classic frame's full transform-type/group-label layout against the selected native gait. Layouts can match across different skeleton IDs. Malformed, incomplete and Maya/weighted combinations are not automatically borrowed. Model skin labels/anatomy remain unverified even when layouts match.
 
@@ -46,7 +48,7 @@ Mappings are guarded by current cache-checked idle/walk families and corroborate
 | Bears | 2838, 2839 | 4919 / 4923 | 4925 |
 | Giant rats | 2856, 2859 | 4932 / 4931 | 4933 |
 
-Native attacks trigger only on the explicitly recognized brother weapon/cast actions, not arbitrary hit/death events. They play once on their own clock and restart on genuine action changes/frame resets. Numeric overrides can supply reviewed additional native sequences; disabling mapped native attacks also disables numeric overrides.
+Native attacks trigger only on the explicitly recognized brother weapon/cast actions, not arbitrary hit/death events. They play once on their own clock and restart on genuine action changes/frame resets. Only the built-in researched mappings are used; previously saved numeric overrides do not apply.
 
 Earlier live observations included brother attacks Verac **2062**, Torag **2068**, Guthan **2080**, Karil **2075**, and Ahrim **2079**, along with hit/death/other actions. Skeleton **5485** and bloodworm **2070** remain research candidates, not newly implemented mappings. Target presence and `AnimationChanged` alone are not attack classifiers. No diagnostic recording option remains.
 
