@@ -23,10 +23,11 @@ final class NativeNpcAnimation extends AnimationController
 	private final AnimationRigCache rigs;
 	private final Map<Integer, Animation> loaded = new HashMap<>();
 	private final Set<Integer> unsupported = new HashSet<>();
+	private final Set<Integer> attempted = new HashSet<>();
 	private NativeNpcAnimations sequences;
 	private NpcAnimationMode mode = NpcAnimationMode.NATIVE;
-	private int metadataAttempt = Integer.MIN_VALUE, animationAttempt = Integer.MIN_VALUE;
-	private int preparedTick = Integer.MIN_VALUE, preparedAction = -1;
+	private int metadataAttempt = Integer.MIN_VALUE, attemptTick = Integer.MIN_VALUE;
+	private int preparedTick = Integer.MIN_VALUE, preparedAction = -1, preparedSequence = -1;
 	private String evidence = "Compatibility not prepared";
 	private boolean compatible;
 	private int selected = -1;
@@ -55,7 +56,7 @@ final class NativeNpcAnimation extends AnimationController
 		preparedTick = Integer.MIN_VALUE; preparedAction = -1; compatible = false; evidence = "Compatibility not prepared";
 	}
 
-	void actionChanged() { preparedTick = Integer.MIN_VALUE; }
+	void actionChanged() { preparedTick = Integer.MIN_VALUE; compatible = false; }
 
 	private void metadata()
 	{
@@ -69,28 +70,36 @@ final class NativeNpcAnimation extends AnimationController
 		}
 	}
 
-	/** Called on client/game ticks, not from rendering. Missing assets retry once per game tick. */
+	/** Called on client/game/animation ticks, never from rendering. */
 	void prepare()
 	{
-		int action = brother.getAnimation(), tick = client.getTickCount();
-		if (action == preparedAction && tick == preparedTick) { return; }
-		preparedAction = action; preparedTick = tick; compatible = false;
 		try
 		{
 			metadata();
-			if (action < 0) { evidence = "No current brother action"; }
-			else if (mode == NpcAnimationMode.NATIVE) { evidence = "Native-only mode"; }
-			else if (mode == NpcAnimationMode.FORCE) { evidence = "Forced brother action; no compatibility guarantee"; }
-			else if (sequences == null || !sequences.complete()) { evidence = "Incomplete NPC metadata; automatic borrowing disabled"; }
-			else
+			prepareGait();
+			int action = brother.getAnimation(), tick = client.getTickCount();
+			if (action != preparedAction || tick != preparedTick || selected != preparedSequence)
 			{
-				AnimationRigCache.Evidence result = rigs.compare(sequences.sequenceFor(brother), action);
-				compatible = result.compatible();
-				evidence = result.description;
-				if (sequences.sharesGaits(brother)) { evidence += "; matching idle/walk IDs (hint only)"; }
+				preparedAction = action; preparedTick = tick; preparedSequence = selected; compatible = false;
+				if (action < 0) { evidence = "No current brother action"; }
+				else if (mode == NpcAnimationMode.NATIVE) { evidence = "Native-only mode"; }
+				else if (mode == NpcAnimationMode.FORCE) { evidence = "Forced brother action; no compatibility guarantee"; }
+				else if (sequences == null || !sequences.complete()) { evidence = "Incomplete NPC metadata; automatic borrowing disabled"; }
+				else
+				{
+					AnimationRigCache.Evidence result = rigs.compare(selected, action);
+					compatible = result.compatible();
+					evidence = result.description;
+					if (sequences.sharesGaits(brother)) { evidence += "; matching idle/walk IDs (hint only)"; }
+				}
 			}
+			if (borrow()) { brotherActions.prepare(); }
 		}
-		catch (RuntimeException ex) { evidence = "Metadata preparation failed: " + ex.getClass().getSimpleName(); }
+		catch (RuntimeException ex)
+		{
+			compatible = false;
+			evidence = "Animation preparation failed: " + ex.getClass().getSimpleName();
+		}
 	}
 
 	private boolean borrow()
@@ -98,30 +107,29 @@ final class NativeNpcAnimation extends AnimationController
 		int action = brother.getAnimation();
 		if (action < 0 || mode == NpcAnimationMode.NATIVE) { return false; }
 		return mode == NpcAnimationMode.FORCE
-			|| (preparedAction == action && compatible);
+			|| (preparedAction == action && preparedTick == client.getTickCount()
+				&& preparedSequence == currentGait() && compatible);
 	}
 
-	private void synchronize()
+	private int currentGait() { return sequences == null ? -1 : sequences.sequenceFor(brother); }
+
+	private void prepareGait()
 	{
-		metadata();
-		int id = sequences == null ? -1 : sequences.sequenceFor(brother);
-		if (id != selected) { selected = id; animationAttempt = Integer.MIN_VALUE; setAnimation(null); }
-		if (id < 0 || unsupported.contains(id)) { return; }
+		int id = currentGait();
+		if (id != selected) { selected = id; setAnimation(null); }
+		if (id < 0 || unsupported.contains(id) || getAnimation() != null) { return; }
 		int tick = client.getTickCount();
-		if (getAnimation() == null && animationAttempt != tick)
-		{
-			animationAttempt = tick;
-			Animation animation = loaded.get(id);
-			if (animation == null) { animation = client.loadAnimation(id); }
-			if (animation != null) { loaded.put(id, animation); setAnimation(animation); }
-		}
+		if (attemptTick != tick) { attemptTick = tick; attempted.clear(); }
+		Animation animation = loaded.get(id);
+		if (animation == null && attempted.add(id)) { animation = client.loadAnimation(id); }
+		if (animation != null) { loaded.put(id, animation); setAnimation(animation); }
 	}
 
 	@Override public void tick(int ticks)
 	{
 		try
 		{
-			synchronize(); super.tick(ticks);
+			prepare(); super.tick(ticks);
 		}
 		catch (RuntimeException ex) { fallback(ex); }
 	}
@@ -135,7 +143,8 @@ final class NativeNpcAnimation extends AnimationController
 				Model action = borrowed(model);
 				if (action != model) { return action; }
 			}
-			synchronize();
+			// A changed pose waits for tick-owned preparation instead of discovering assets here.
+			if (selected != currentGait()) { state = State.STATIC; return model; }
 			Animation animation = getAnimation();
 			invalidFrame = animation != null && (getFrame() < 0 || getFrame() >= animation.getNumFrames());
 			if (animation == null || invalidFrame) { state = State.STATIC; return model; }

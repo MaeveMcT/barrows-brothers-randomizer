@@ -52,13 +52,45 @@ public class NativeNpcAnimationTest
 		return animation;
 	}
 
+	/** Exercise the same preparation-before-render ordering as the live disguise module. */
+	private Model render()
+	{
+		((NativeNpcAnimation) object.getAnimationController()).prepare();
+		return object.getModel();
+	}
+
+	private NativeNpcAnimation configured(NpcAnimationMode mode)
+	{
+		NativeNpcAnimation controller = new NativeNpcAnimation(client, brother, 77777, new AnimationRigCache(client));
+		controller.options(mode);
+		object.setAnimationController(controller);
+		return controller;
+	}
+
+	private void matchingIdleRigAndDifferentWalkRig()
+	{
+		IndexDataBase frames = mock(IndexDataBase.class), maps = mock(IndexDataBase.class);
+		when(client.getRevision()).thenReturn(240);
+		when(client.getIndex(0)).thenReturn(frames); when(client.getIndex(1)).thenReturn(maps);
+		when(configs.loadData(12, 100)).thenReturn(AnimationRigCacheTest.sequence(10, 1));
+		when(configs.loadData(12, 101)).thenReturn(AnimationRigCacheTest.sequence(30, 1));
+		when(configs.loadData(12, 999)).thenReturn(AnimationRigCacheTest.sequence(20, 1));
+		when(frames.loadData(10, 0)).thenReturn(new byte[] {0, 7, 1, 1, 64});
+		when(frames.loadData(20, 0)).thenReturn(new byte[] {0, 7, 1, 1, 64});
+		when(frames.loadData(30, 0)).thenReturn(new byte[] {0, 8, 1, 1, 64});
+		when(maps.loadData(7, 0)).thenReturn(new byte[] {1, 1, 1, 0});
+		when(maps.loadData(8, 0)).thenReturn(new byte[] {1, 1, 1, 3});
+		Animation action = animation(999);
+		when(client.loadAnimation(999)).thenReturn(action);
+	}
+
 	@Test
 	public void playsSelectedNpcsIdleAndDoesNotBorrowBrothersAttack()
 	{
-		assertSame(animated, object.getModel());
+		assertSame(animated, render());
 		verify(client).applyTransformations(base, idle, 0, null, 0);
 		object.tick(3);
-		assertSame(animated, object.getModel());
+		assertSame(animated, render());
 		verify(client).applyTransformations(base, idle, 1, null, 0);
 		verify(client, never()).loadAnimation(999);
 		verify(brother, never()).setAnimation(anyInt());
@@ -76,13 +108,13 @@ public class NativeNpcAnimationTest
 		when(brother.getAnimationFrame()).thenReturn(2);
 		when(client.applyTransformations(base, action, 2, null, 0)).thenReturn(actionModel);
 		object.setAnimationController(new NativeNpcAnimation(client, brother, 77777, true));
-		assertSame(actionModel, object.getModel());
+		assertSame(actionModel, render());
 		when(brother.getAnimationFrame()).thenReturn(0);
 		when(client.applyTransformations(base, action, 0, null, 0)).thenReturn(actionModel);
-		assertSame(actionModel, object.getModel());
+		assertSame(actionModel, render());
 		verify(client).applyTransformations(base, action, 0, null, 0);
 		when(brother.getAnimation()).thenReturn(-1);
-		assertSame(animated, object.getModel());
+		assertSame(animated, render());
 		verify(client).applyTransformations(base, idle, 0, null, 0);
 		verify(brother, never()).setAnimation(anyInt());
 	}
@@ -94,7 +126,7 @@ public class NativeNpcAnimationTest
 		when(client.loadAnimation(999)).thenReturn(action);
 		when(client.applyTransformations(base, action, 0, null, 0)).thenThrow(new IllegalArgumentException("rig"));
 		object.setAnimationController(new NativeNpcAnimation(client, brother, 77777, true));
-		assertSame(animated, object.getModel()); assertSame(animated, object.getModel());
+		assertSame(animated, render()); assertSame(animated, render());
 		verify(client).applyTransformations(base, action, 0, null, 0);
 	}
 
@@ -102,26 +134,18 @@ public class NativeNpcAnimationTest
 	public void unavailableBrotherActionsRetryOncePerTickAndKeepNativeGait()
 	{
 		object.setAnimationController(new NativeNpcAnimation(client, brother, 77777, true));
-		assertSame(animated, object.getModel()); assertSame(animated, object.getModel());
+		assertSame(animated, render()); assertSame(animated, render());
 		verify(client).loadAnimation(999);
 		when(client.getTickCount()).thenReturn(1);
 		Animation action = animation(999);
 		when(client.loadAnimation(999)).thenReturn(action);
-		assertSame(animated, object.getModel());
+		assertSame(animated, render());
 		verify(client, times(2)).loadAnimation(999);
 		verify(client).applyTransformations(base, action, 0, null, 0);
 	}
 
-	private NativeNpcAnimation configured(NpcAnimationMode mode)
-	{
-		NativeNpcAnimation controller = new NativeNpcAnimation(client, brother, 77777, new AnimationRigCache(client));
-		controller.options(mode);
-		object.setAnimationController(controller);
-		return controller;
-	}
-
 	@Test
-	public void autoRequiresRigEvidenceEvenWhenGaitIdsMatchAndNeverDecodesRigsDuringRendering()
+	public void autoRequiresRigEvidenceEvenWhenGaitIdsMatchAndNeverDiscoversAssetsDuringRendering()
 	{
 		when(brother.getIdlePoseAnimation()).thenReturn(100);
 		when(brother.getWalkAnimation()).thenReturn(101);
@@ -133,27 +157,22 @@ public class NativeNpcAnimationTest
 		when(client.getRevision()).thenReturn(240);
 		when(client.getTickCount()).thenReturn(1);
 		controller.prepare();
-		clearInvocations(configs);
+		clearInvocations(configs, client);
 		object.getModel(); object.getModel();
-		verify(configs, never()).loadData(eq(12), anyInt());
+		verify(configs, never()).loadData(anyInt(), anyInt());
+		verify(client, never()).loadAnimation(anyInt());
 		verify(client, never()).getIndex(anyInt());
+		verify(client, never()).getIndexConfig();
 	}
 
 	@Test
 	public void autoBorrowsOnlyAfterAllClassicFrameMapsMatchAndNativeModeDisablesBorrowing()
 	{
-		IndexDataBase frames = mock(IndexDataBase.class), maps = mock(IndexDataBase.class);
-		when(client.getRevision()).thenReturn(240);
-		when(client.getIndex(0)).thenReturn(frames); when(client.getIndex(1)).thenReturn(maps);
-		when(configs.loadData(12, 100)).thenReturn(AnimationRigCacheTest.sequence(10, 1));
-		when(configs.loadData(12, 999)).thenReturn(AnimationRigCacheTest.sequence(20, 1));
-		when(frames.loadData(anyInt(), anyInt())).thenReturn(new byte[] {0, 7, 1, 1, 64});
-		when(maps.loadData(7, 0)).thenReturn(new byte[] {1, 1, 1, 0});
-		Animation action = animation(999);
-		when(client.loadAnimation(999)).thenReturn(action);
+		matchingIdleRigAndDifferentWalkRig();
+		Animation action = client.loadAnimation(999);
+		clearInvocations(client);
 		NativeNpcAnimation controller = configured(NpcAnimationMode.AUTO);
-		controller.prepare();
-		assertSame(animated, object.getModel());
+		assertSame(animated, render());
 		verify(client).applyTransformations(base, action, 0, null, 0);
 		assertTrue(controller.summary().contains("Shared classic frame-map layout"));
 		controller.options(NpcAnimationMode.NATIVE); controller.prepare();
@@ -168,7 +187,7 @@ public class NativeNpcAnimationTest
 	{
 		Animation action = animation(999); when(client.loadAnimation(999)).thenReturn(action);
 		NativeNpcAnimation controller = configured(NpcAnimationMode.FORCE);
-		assertSame(animated, object.getModel());
+		assertSame(animated, render());
 		verify(client).applyTransformations(base, action, 0, null, 0);
 		for (NpcAnimationMode mode : new NpcAnimationMode[] {NpcAnimationMode.AUTO, NpcAnimationMode.NATIVE})
 		{
@@ -197,15 +216,15 @@ public class NativeNpcAnimationTest
 	@Test
 	public void switchesBetweenNativeWalkAndIdleAndLoopsWithoutDespawning()
 	{
-		object.getModel();
+		render();
 		when(brother.getPoseAnimation()).thenReturn(10);
-		assertSame(animated, object.getModel());
+		assertSame(animated, render());
 		verify(client).applyTransformations(base, walk, 0, null, 0);
 		object.tick(100);
-		assertSame(animated, object.getModel());
+		assertSame(animated, render());
 		when(brother.getPoseAnimation()).thenReturn(0);
-		assertSame(animated, object.getModel());
-		verify(client).loadAnimation(100); // Successful animations are reused after gait switches.
+		assertSame(animated, render());
+		verify(client).loadAnimation(100);
 		verify(client, never()).removeRuneLiteObject(any());
 	}
 
@@ -213,11 +232,11 @@ public class NativeNpcAnimationTest
 	public void missingMetadataRetriesAtMostOncePerGameTick()
 	{
 		when(configs.loadData(9, 77777)).thenReturn(null);
-		assertSame(base, object.getModel()); assertSame(base, object.getModel());
+		assertSame(base, render()); assertSame(base, render());
 		verify(configs).loadData(9, 77777);
 		when(client.getTickCount()).thenReturn(1);
 		when(configs.loadData(9, 77777)).thenReturn(new byte[] {13, 0, 100, 0});
-		assertSame(animated, object.getModel());
+		assertSame(animated, render());
 		verify(configs, times(2)).loadData(9, 77777);
 	}
 
@@ -225,11 +244,11 @@ public class NativeNpcAnimationTest
 	public void missingAnimationRetriesWithoutRerollingOrHidingTheModel()
 	{
 		when(client.loadAnimation(100)).thenReturn(null);
-		assertSame(base, object.getModel()); assertSame(base, object.getModel());
+		assertSame(base, render()); assertSame(base, render());
 		verify(client).loadAnimation(100);
 		when(client.getTickCount()).thenReturn(1);
 		when(client.loadAnimation(100)).thenReturn(idle);
-		assertSame(animated, object.getModel());
+		assertSame(animated, render());
 		verify(client, times(2)).loadAnimation(100);
 	}
 
@@ -237,10 +256,10 @@ public class NativeNpcAnimationTest
 	public void incompatibleIdleFallsBackButNativeWalkCanStillPlay()
 	{
 		when(client.applyTransformations(base, idle, 0, null, 0)).thenThrow(new IllegalArgumentException("rig"));
-		assertSame(base, object.getModel()); assertSame(base, object.getModel());
+		assertSame(base, render()); assertSame(base, render());
 		verify(client).applyTransformations(base, idle, 0, null, 0);
 		when(brother.getPoseAnimation()).thenReturn(10);
-		assertSame(animated, object.getModel());
+		assertSame(animated, render());
 	}
 
 	@Test
@@ -248,11 +267,11 @@ public class NativeNpcAnimationTest
 	{
 		NativeNpcAnimation controller = new NativeNpcAnimation(client, brother, 77777);
 		when(configs.loadData(9, 77777)).thenReturn(null);
-		controller.animate(base, null);
+		controller.prepare(); controller.animate(base, null);
 		assertTrue(controller.summary().contains("waiting for NPC definition bytes"));
 		when(client.getTickCount()).thenReturn(1);
 		when(configs.loadData(9, 77777)).thenReturn(new byte[] {(byte) 200, 13, 0, 100, 0});
-		controller.animate(base, null);
+		controller.prepare(); controller.animate(base, null);
 		assertTrue(controller.summary().contains("no matching native gait sequence"));
 		assertTrue(controller.summary().contains("unsupported definition opcode 200"));
 	}
@@ -261,7 +280,7 @@ public class NativeNpcAnimationTest
 	public void malformedMetadataLeavesAStaticModel()
 	{
 		when(configs.loadData(9, 77777)).thenReturn(new byte[] {13, 0});
-		assertSame(base, object.getModel());
+		assertSame(base, render());
 		verify(client, never()).loadAnimation(anyInt());
 	}
 
@@ -271,7 +290,7 @@ public class NativeNpcAnimationTest
 		when(idle.isMayaAnim()).thenReturn(true);
 		when(idle.getFrameLengths()).thenReturn(null);
 		object.tick(1);
-		assertSame(animated, object.getModel());
+		assertSame(animated, render());
 		verify(client).applyTransformations(base, idle, 1, null, 0);
 	}
 
@@ -280,8 +299,137 @@ public class NativeNpcAnimationTest
 	{
 		Model second = mock(Model.class);
 		when(client.applyTransformations(base, idle, 0, null, 0)).thenReturn(animated, second);
+		assertSame(animated, render());
+		assertSame(second, render());
+	}
+
+	@Test
+	public void renderingBeforePreparationDoesNotDiscoverAssets()
+	{
+		assertSame(base, object.getModel()); assertSame(base, object.getModel());
+		verify(configs, never()).loadData(anyInt(), anyInt());
+		verify(client, never()).getIndexConfig();
+		verify(client, never()).loadAnimation(anyInt());
+		assertSame(animated, render());
+	}
+
+	@Test
+	public void renderingDoesNotRetryMissingMetadataOrAnimationsEvenOnANewGameTick()
+	{
+		NativeNpcAnimation controller = configured(NpcAnimationMode.FORCE);
+		when(configs.loadData(9, 77777)).thenReturn(null);
+		controller.prepare();
+		when(client.getTickCount()).thenReturn(1);
+		when(configs.loadData(9, 77777)).thenReturn(new byte[] {13, 0, 100, 0});
+		when(client.loadAnimation(100)).thenReturn(null);
+		clearInvocations(configs, client);
+		assertSame(base, object.getModel());
+		verify(configs, never()).loadData(anyInt(), anyInt());
+		verify(client, never()).loadAnimation(anyInt());
+		controller.prepare();
+		verify(configs).loadData(9, 77777);
+		verify(client).loadAnimation(100); verify(client).loadAnimation(999);
+		when(client.getTickCount()).thenReturn(2);
+		clearInvocations(configs, client);
+		object.getModel(); object.getModel();
+		verify(configs, never()).loadData(anyInt(), anyInt());
+		verify(client, never()).loadAnimation(anyInt());
+		controller.prepare();
+		verify(client).loadAnimation(100); verify(client).loadAnimation(999);
+	}
+
+	@Test
+	public void autoEvidenceTracksGaitChangesWithinTheSameGameTick()
+	{
+		matchingIdleRigAndDifferentWalkRig();
+		NativeNpcAnimation controller = configured(NpcAnimationMode.AUTO);
+		controller.prepare(); object.getModel();
+		verify(client).applyTransformations(eq(base), argThat(a -> a.getId() == 999), eq(0), isNull(), eq(0));
+		when(brother.getPoseAnimation()).thenReturn(10);
+		clearInvocations(client, configs);
+		assertSame(base, object.getModel());
+		verify(client, never()).loadAnimation(anyInt());
+		verify(client, never()).applyTransformations(any(), any(), anyInt(), any(), anyInt());
+		controller.prepare();
 		assertSame(animated, object.getModel());
-		assertSame(second, object.getModel());
+		verify(client).applyTransformations(base, walk, 0, null, 0);
+		assertTrue(controller.summary().contains("Different classic frame-map layouts"));
+		when(brother.getPoseAnimation()).thenReturn(0);
+		assertSame(base, object.getModel());
+		controller.prepare(); clearInvocations(client);
+		assertSame(animated, object.getModel());
+		verify(client).applyTransformations(eq(base), argThat(a -> a.getId() == 999), eq(0), isNull(), eq(0));
+	}
+
+	@Test
+	public void actionNotificationInvalidatesEvidenceUntilPreparation()
+	{
+		matchingIdleRigAndDifferentWalkRig();
+		NativeNpcAnimation controller = configured(NpcAnimationMode.AUTO);
+		controller.prepare(); object.getModel();
+		controller.actionChanged(); clearInvocations(client);
+		object.getModel();
+		verify(client).applyTransformations(base, idle, 0, null, 0);
+		verify(client, never()).loadAnimation(anyInt());
+		controller.prepare(); clearInvocations(client); object.getModel();
+		verify(client).applyTransformations(eq(base), argThat(a -> a.getId() == 999), eq(0), isNull(), eq(0));
+	}
+
+	@Test
+	public void changedBrotherActionWaitsForTickPreparation()
+	{
+		Animation first = animation(999), second = animation(998);
+		when(client.loadAnimation(999)).thenReturn(first);
+		NativeNpcAnimation controller = configured(NpcAnimationMode.FORCE);
+		controller.prepare(); object.getModel();
+		when(brother.getAnimation()).thenReturn(998);
+		when(client.loadAnimation(998)).thenReturn(second);
+		clearInvocations(client);
+		object.getModel();
+		verify(client).applyTransformations(base, idle, 0, null, 0);
+		verify(client, never()).loadAnimation(998);
+		controller.prepare(); object.getModel();
+		verify(client).loadAnimation(998);
+		verify(client).applyTransformations(eq(base), argThat(a -> a.getId() == 998), eq(0), isNull(), eq(0));
+	}
+
+	@Test
+	public void optionChangesPreserveTheNativeGaitClock()
+	{
+		NativeNpcAnimation controller = configured(NpcAnimationMode.NATIVE);
+		controller.prepare(); object.tick(3);
+		for (NpcAnimationMode mode : NpcAnimationMode.values())
+		{
+			controller.options(mode); controller.prepare();
+			clearInvocations(client); object.getModel();
+			verify(client).applyTransformations(base, idle, 1, null, 0);
+		}
+		verify(client, never()).loadAnimation(100);
+	}
+
+	@Test
+	public void switchingGaitsDoesNotRetryAMissingSequenceWithinTheSameTick()
+	{
+		when(client.loadAnimation(100)).thenReturn(null);
+		NativeNpcAnimation controller = configured(NpcAnimationMode.NATIVE);
+		controller.prepare();
+		when(brother.getPoseAnimation()).thenReturn(10); controller.prepare();
+		when(brother.getPoseAnimation()).thenReturn(0); controller.prepare(); controller.prepare();
+		verify(client).loadAnimation(100);
+		when(client.getTickCount()).thenReturn(1); controller.prepare();
+		verify(client, times(2)).loadAnimation(100);
+	}
+
+	@Test
+	public void switchingActionsDoesNotRetryMissingActionsWithinTheSameTick()
+	{
+		NativeNpcAnimation controller = configured(NpcAnimationMode.FORCE);
+		controller.prepare();
+		when(brother.getAnimation()).thenReturn(998); controller.prepare();
+		when(brother.getAnimation()).thenReturn(999); controller.prepare(); controller.prepare();
+		verify(client).loadAnimation(999); verify(client).loadAnimation(998);
+		when(client.getTickCount()).thenReturn(1); controller.prepare();
+		verify(client, times(2)).loadAnimation(999);
 	}
 
 	@Test
@@ -318,7 +466,7 @@ public class NativeNpcAnimationTest
 		NativeNpcAnimations data = NativeNpcAnimations.decode(new byte[] {13, 0, 100, (byte) 200, 14, 0, 101, 0});
 		assertEquals(100, data.sequenceFor(brother));
 		when(brother.getPoseAnimation()).thenReturn(10);
-		assertEquals(100, data.sequenceFor(brother)); // Unknown walk safely uses the known idle.
+		assertEquals(100, data.sequenceFor(brother));
 		assertEquals(-1, NativeNpcAnimations.decode(new byte[] {13, (byte) 255, (byte) 255, 0}).sequenceFor(brother));
 	}
 }

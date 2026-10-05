@@ -34,7 +34,7 @@ There are no explicit native attack mappings, brother-attack classifiers or cust
 
 Rig evidence compares every required classic frame's full transform-type/group-label layout against the selected native gait. Layouts can match across different skeleton IDs. Malformed, incomplete and Maya/weighted combinations are not automatically borrowed. Model skin labels/anatomy remain unverified even when layouts match. Playback consumes a typed compatible/incompatible/unknown classification; diagnostic wording never authorizes borrowing.
 
-Rig metadata is prepared outside rendering, bounded by caches and at most **24 metadata reads per game tick** across disguises. Native gait uses its own clock; borrowed actions use the real brother's action/frame. Action-change notifications invalidate prepared compatibility evidence. Option changes preserve selection, registration and gait clock.
+NPC metadata, rig evidence and animation loading are prepared on client/game/animation ticks, never during rendering. Missing animation assets retry at most once per sequence per game tick, even when poses/actions change repeatedly. Rig metadata is bounded by caches and at most **24 metadata reads per game tick** across disguises. Native gait uses its own clock; borrowed actions use the real brother's action/frame. Evidence is tied to the current action, selected native gait and game tick; action-change notifications invalidate it immediately. If a pose/action changes before preparation, rendering uses a prepared native fallback or static pose without discovering assets. Option changes preserve selection, registration and gait clock.
 
 ## Remaining checks
 
